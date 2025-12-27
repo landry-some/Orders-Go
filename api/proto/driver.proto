@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package driver;
+
+option go_package = "api/proto;driverpb";
+
+import "google/protobuf/timestamp.proto";
+
+message Location {
+  string driver_id = 1;
+  double latitude = 2;
+  double longitude = 3;
+  google.protobuf.Timestamp timestamp = 4;
+}
+
+message UpdateLocationAck {
+  string message = 1;
+}
+
+service DriverService {
+  // Client-streaming endpoint for driver location updates.
+  rpc UpdateLocation(stream Location) returns (UpdateLocationAck);
+}
