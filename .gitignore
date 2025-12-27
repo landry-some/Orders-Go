@@ -1,0 +1,42 @@
+# macOS
+.DS_Store
+
+# Node/npm
+node_modules/
+npm-debug.log*
+yarn-error.log
+dist/
+build/
+
+# Go
+/bin/
+/pkg/
+*.test
+coverage.out
+vendor/
+.gocache/
+
+# IDEs / editors
+.vscode/
+.idea/
+*.iml
+*.sublime-project
+*.sublime-workspace
+
+# Environment files
+.env
+.env.*.local
+.env.local
+*.local
+
+# Logs and runtime files
+*.log
+logs/
+debug.log
+
+
+# Markdown: ignore all .md except README.md files
+*.md
+!README.md
+!**/README.md
+Thumbs.db
