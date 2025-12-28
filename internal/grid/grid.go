@@ -1,7 +1,9 @@
 package grid
 
 import (
+	"bufio"
 	"encoding/json"
+	"os"
 	"sync"
 
 	"wayfinder/internal/courier"
@@ -25,6 +27,18 @@ func NewGridService(wal WAL) *GridService {
 		locations: make(map[string]courier.Location),
 		wal:       wal,
 	}
+}
+
+// NewGridServiceWithRecovery constructs a GridService and replays the WAL into memory.
+func NewGridServiceWithRecovery(wal *FileWAL) (*GridService, error) {
+	g := &GridService{
+		locations: make(map[string]courier.Location),
+		wal:       wal,
+	}
+	if err := g.loadFromWAL(wal); err != nil {
+		return nil, err
+	}
+	return g, nil
 }
 
 // Update writes the location to the WAL before updating memory.
@@ -52,4 +66,23 @@ func (g *GridService) Get(driverID string) (courier.Location, bool) {
 	defer g.mu.RUnlock()
 	loc, ok := g.locations[driverID]
 	return loc, ok
+}
+
+func (g *GridService) loadFromWAL(w *FileWAL) error {
+	file, err := os.Open(w.f.Name())
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		var loc courier.Location
+		if err := json.Unmarshal(scanner.Bytes(), &loc); err != nil {
+			return err
+		}
+		g.locations[loc.DriverID] = loc
+	}
+
+	return scanner.Err()
 }

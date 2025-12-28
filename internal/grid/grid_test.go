@@ -90,3 +90,60 @@ func TestFileWAL_WritesAndAppends(t *testing.T) {
 		t.Fatalf("wal contents = %s, want %s", string(data), expected)
 	}
 }
+
+func TestGrid_RecoversFromWAL(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "wal.log")
+
+	locs := []courier.Location{
+		{
+			DriverID:  "driver-1",
+			Lat:       10.0,
+			Long:      20.0,
+			Timestamp: time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC),
+		},
+		{
+			DriverID:  "driver-2",
+			Lat:       -10.0,
+			Long:      -20.0,
+			Timestamp: time.Date(2024, 1, 2, 4, 5, 6, 0, time.UTC),
+		},
+	}
+
+	var data []byte
+	for _, loc := range locs {
+		b, err := json.Marshal(loc)
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		data = append(data, b...)
+		data = append(data, '\n')
+	}
+
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatalf("write wal: %v", err)
+	}
+
+	wal, err := NewFileWAL(path)
+	if err != nil {
+		t.Fatalf("new wal: %v", err)
+	}
+	t.Cleanup(func() { wal.Close() })
+
+	grid, err := NewGridServiceWithRecovery(wal)
+	if err != nil {
+		t.Fatalf("new grid with recovery: %v", err)
+	}
+
+	for _, expected := range locs {
+		got, ok := grid.Get(expected.DriverID)
+		if !ok {
+			t.Fatalf("expected location for driver %s", expected.DriverID)
+		}
+		if got != expected {
+			t.Fatalf("got %+v, want %+v", got, expected)
+		}
+	}
+}
