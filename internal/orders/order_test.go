@@ -1,6 +1,9 @@
 package orders
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 var callSeq int
 
@@ -10,6 +13,11 @@ type spyPayment struct {
 	amount    float64
 	callOrder int
 	err       error
+
+	refundCalled    bool
+	refundOrderID   string
+	refundAmount    float64
+	refundCallOrder int
 }
 
 func (s *spyPayment) Charge(orderID string, amount float64) error {
@@ -19,6 +27,15 @@ func (s *spyPayment) Charge(orderID string, amount float64) error {
 	s.callOrder = callSeq
 	callSeq++
 	return s.err
+}
+
+func (s *spyPayment) Refund(orderID string, amount float64) error {
+	s.refundCalled = true
+	s.refundOrderID = orderID
+	s.refundAmount = amount
+	s.refundCallOrder = callSeq
+	callSeq++
+	return nil
 }
 
 type spyDriver struct {
@@ -63,5 +80,29 @@ func TestCreateOrder_Success(t *testing.T) {
 
 	if payment.callOrder >= driver.callOrder {
 		t.Fatalf("expected payment.Charge to be called before driver.Assign; got payment=%d driver=%d", payment.callOrder, driver.callOrder)
+	}
+}
+
+func TestCreateOrder_Compensates_On_DriverFailure(t *testing.T) {
+	callSeq = 0
+	payment := &spyPayment{}
+	driver := &spyDriver{err: errors.New("assign failed")}
+	service := &OrderService{payments: payment, drivers: driver}
+
+	orderID := "order-456"
+	amount := 19.99
+	driverID := "driver-def"
+
+	err := service.CreateOrder(orderID, amount, driverID)
+	if err == nil {
+		t.Fatalf("expected error due to driver failure, got nil")
+	}
+
+	if !payment.refundCalled {
+		t.Fatalf("expected payment.Refund to be called")
+	}
+
+	if payment.refundOrderID != orderID || payment.refundAmount != amount {
+		t.Fatalf("refund called with wrong args: id=%s amount=%f", payment.refundOrderID, payment.refundAmount)
 	}
 }

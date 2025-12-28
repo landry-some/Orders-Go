@@ -3,6 +3,7 @@ package orders
 // PaymentClient charges a payment instrument for an order.
 type PaymentClient interface {
 	Charge(orderID string, amount float64) error
+	Refund(orderID string, amount float64) error
 }
 
 // DriverClient assigns a driver to an order.
@@ -31,6 +32,8 @@ func (s *OrderService) CreateOrder(orderID string, amount float64, driverID stri
 	}
 
 	if err := s.drivers.Assign(orderID, driverID); err != nil {
+		// Compensate by refunding the payment if driver assignment fails.
+		_ = s.payments.Refund(orderID, amount)
 		return err
 	}
 
