@@ -133,3 +133,28 @@ func TestCreateOrder_RefundFailureReported(t *testing.T) {
 		t.Fatalf("expected refund to be attempted")
 	}
 }
+
+func TestCreateOrder_PaymentFailureStopsFlow(t *testing.T) {
+	callSeq = 0
+	paymentErr := errors.New("charge failed")
+	payment := &spyPayment{err: paymentErr}
+	driver := &spyDriver{}
+	service := &OrderService{payments: payment, drivers: driver}
+
+	orderID := "order-999"
+	amount := 49.99
+	driverID := "driver-jkl"
+
+	err := service.CreateOrder(orderID, amount, driverID)
+	if err == nil {
+		t.Fatalf("expected error due to payment failure, got nil")
+	}
+
+	if !errors.Is(err, paymentErr) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if driver.called {
+		t.Fatalf("driver.Assign should not be called when payment fails")
+	}
+}
