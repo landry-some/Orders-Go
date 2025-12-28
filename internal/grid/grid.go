@@ -75,6 +75,9 @@ func (g *GridService) loadFromWAL(w *FileWAL) error {
 	}
 	defer file.Close()
 
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		var loc courier.Location
