@@ -1,5 +1,7 @@
 package orders
 
+import "fmt"
+
 // PaymentClient charges a payment instrument for an order.
 type PaymentClient interface {
 	Charge(orderID string, amount float64) error
@@ -33,7 +35,9 @@ func (s *OrderService) CreateOrder(orderID string, amount float64, driverID stri
 
 	if err := s.drivers.Assign(orderID, driverID); err != nil {
 		// Compensate by refunding the payment if driver assignment fails.
-		_ = s.payments.Refund(orderID, amount)
+		if refundErr := s.payments.Refund(orderID, amount); refundErr != nil {
+			return fmt.Errorf("driver assignment failed: %w; refund failed: %v", err, refundErr)
+		}
 		return err
 	}
 

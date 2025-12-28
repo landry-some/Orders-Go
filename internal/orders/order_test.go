@@ -18,6 +18,7 @@ type spyPayment struct {
 	refundOrderID   string
 	refundAmount    float64
 	refundCallOrder int
+	refundErr       error
 }
 
 func (s *spyPayment) Charge(orderID string, amount float64) error {
@@ -35,7 +36,7 @@ func (s *spyPayment) Refund(orderID string, amount float64) error {
 	s.refundAmount = amount
 	s.refundCallOrder = callSeq
 	callSeq++
-	return nil
+	return s.refundErr
 }
 
 type spyDriver struct {
@@ -104,5 +105,31 @@ func TestCreateOrder_Compensates_On_DriverFailure(t *testing.T) {
 
 	if payment.refundOrderID != orderID || payment.refundAmount != amount {
 		t.Fatalf("refund called with wrong args: id=%s amount=%f", payment.refundOrderID, payment.refundAmount)
+	}
+}
+
+func TestCreateOrder_RefundFailureReported(t *testing.T) {
+	callSeq = 0
+	refundErr := errors.New("refund failed")
+	driverErr := errors.New("assign failed")
+	payment := &spyPayment{refundErr: refundErr}
+	driver := &spyDriver{err: driverErr}
+	service := &OrderService{payments: payment, drivers: driver}
+
+	orderID := "order-789"
+	amount := 29.99
+	driverID := "driver-ghi"
+
+	err := service.CreateOrder(orderID, amount, driverID)
+	if err == nil {
+		t.Fatalf("expected error due to driver and refund failure, got nil")
+	}
+
+	if !errors.Is(err, driverErr) {
+		t.Fatalf("expected driver error to be present: %v", err)
+	}
+
+	if !payment.refundCalled {
+		t.Fatalf("expected refund to be attempted")
 	}
 }
