@@ -5,8 +5,6 @@ import (
 	"testing"
 )
 
-var callSeq int
-
 type spyPayment struct {
 	called    bool
 	orderID   string
@@ -19,14 +17,16 @@ type spyPayment struct {
 	refundAmount    float64
 	refundCallOrder int
 	refundErr       error
+
+	seq *int
 }
 
 func (s *spyPayment) Charge(orderID string, amount float64) error {
 	s.called = true
 	s.orderID = orderID
 	s.amount = amount
-	s.callOrder = callSeq
-	callSeq++
+	s.callOrder = *s.seq
+	*s.seq++
 	return s.err
 }
 
@@ -34,8 +34,8 @@ func (s *spyPayment) Refund(orderID string, amount float64) error {
 	s.refundCalled = true
 	s.refundOrderID = orderID
 	s.refundAmount = amount
-	s.refundCallOrder = callSeq
-	callSeq++
+	s.refundCallOrder = *s.seq
+	*s.seq++
 	return s.refundErr
 }
 
@@ -45,21 +45,22 @@ type spyDriver struct {
 	driverID  string
 	callOrder int
 	err       error
+	seq       *int
 }
 
 func (s *spyDriver) Assign(orderID string, driverID string) error {
 	s.called = true
 	s.orderID = orderID
 	s.driverID = driverID
-	s.callOrder = callSeq
-	callSeq++
+	s.callOrder = *s.seq
+	*s.seq++
 	return s.err
 }
 
 func TestCreateOrder_Success(t *testing.T) {
-	callSeq = 0
-	payment := &spyPayment{}
-	driver := &spyDriver{}
+	seq := 0
+	payment := &spyPayment{seq: &seq}
+	driver := &spyDriver{seq: &seq}
 	service := &OrderService{payments: payment, drivers: driver}
 
 	orderID := "order-123"
@@ -85,9 +86,9 @@ func TestCreateOrder_Success(t *testing.T) {
 }
 
 func TestCreateOrder_Compensates_On_DriverFailure(t *testing.T) {
-	callSeq = 0
-	payment := &spyPayment{}
-	driver := &spyDriver{err: errors.New("assign failed")}
+	seq := 0
+	payment := &spyPayment{seq: &seq}
+	driver := &spyDriver{err: errors.New("assign failed"), seq: &seq}
 	service := &OrderService{payments: payment, drivers: driver}
 
 	orderID := "order-456"
@@ -109,11 +110,11 @@ func TestCreateOrder_Compensates_On_DriverFailure(t *testing.T) {
 }
 
 func TestCreateOrder_RefundFailureReported(t *testing.T) {
-	callSeq = 0
+	seq := 0
 	refundErr := errors.New("refund failed")
 	driverErr := errors.New("assign failed")
-	payment := &spyPayment{refundErr: refundErr}
-	driver := &spyDriver{err: driverErr}
+	payment := &spyPayment{refundErr: refundErr, seq: &seq}
+	driver := &spyDriver{err: driverErr, seq: &seq}
 	service := &OrderService{payments: payment, drivers: driver}
 
 	orderID := "order-789"
@@ -135,10 +136,10 @@ func TestCreateOrder_RefundFailureReported(t *testing.T) {
 }
 
 func TestCreateOrder_PaymentFailureStopsFlow(t *testing.T) {
-	callSeq = 0
+	seq := 0
 	paymentErr := errors.New("charge failed")
-	payment := &spyPayment{err: paymentErr}
-	driver := &spyDriver{}
+	payment := &spyPayment{err: paymentErr, seq: &seq}
+	driver := &spyDriver{seq: &seq}
 	service := &OrderService{payments: payment, drivers: driver}
 
 	orderID := "order-999"
