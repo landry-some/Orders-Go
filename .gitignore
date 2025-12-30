@@ -42,5 +42,6 @@ debug.log
 Thumbs.db
 
 scripts/
-msgs.txt
 courier.log
+driver_msgs.txt
+order_msgs.txt
