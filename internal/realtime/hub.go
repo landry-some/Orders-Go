@@ -25,6 +25,25 @@ func NewHub() *Hub {
 	}
 }
 
+// HubBroadcaster adapts a Hub to the Broadcaster interface.
+type HubBroadcaster struct {
+	hub *Hub
+}
+
+// NewHubBroadcaster constructs a broadcaster backed by a Hub.
+func NewHubBroadcaster(h *Hub) *HubBroadcaster {
+	return &HubBroadcaster{hub: h}
+}
+
+// Broadcast sends the message to the hub's broadcast channel non-blocking.
+func (b *HubBroadcaster) Broadcast(msg []byte) {
+	select {
+	case b.hub.Broadcast <- msg:
+	default:
+		// drop if subscribers are slow
+	}
+}
+
 // Run processes register/unregister/broadcast events.
 func (h *Hub) Run() {
 	for {
