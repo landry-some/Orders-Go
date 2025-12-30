@@ -34,12 +34,12 @@ func main() {
 		log.Fatalf("init grid: %v", err)
 	}
 
-	publisher := courier.NewLocalGridPublisher(g)
+	publisher := courier.NewGridPublisher(g)
 	ingest := courier.NewIngestService(publisher)
 
 	orderService := orders.NewOrderService(
-		&orders.NoopPaymentClient{},
-		&orders.NoopDriverClient{},
+		orders.NewInMemoryPaymentClient(),
+		orders.NewInMemoryDriverClient(),
 		func() string { return "order-" + strconv.FormatInt(time.Now().UnixNano(), 10) },
 		func() string { return "driver-" + time.Now().Format("150405") },
 	)

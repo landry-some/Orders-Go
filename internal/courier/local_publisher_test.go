@@ -18,7 +18,7 @@ func TestLocalGridPublisherPublishes(t *testing.T) {
 	t.Cleanup(func() { _ = wal.Close() })
 
 	g := grid.NewGridService(wal)
-	publisher := courier.NewLocalGridPublisher(g)
+	publisher := courier.NewGridPublisher(g)
 
 	loc := courier.Location{
 		DriverID:  "driver-123",

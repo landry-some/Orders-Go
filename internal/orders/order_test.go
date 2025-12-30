@@ -7,27 +7,24 @@ import (
 )
 
 type spyPayment struct {
-	called    bool
-	orderID   string
-	amount    float64
-	callOrder int
-	err       error
-
-	refundCalled    bool
-	refundOrderID   string
-	refundAmount    float64
-	refundCallOrder int
-	refundErr       error
-
-	seq *int
+	called        bool
+	orderID       string
+	amount        float64
+	err           error
+	refundCalled  bool
+	refundOrderID string
+	refundAmount  float64
+	refundErr     error
+	callLog       *[]string
 }
 
 func (s *spyPayment) Charge(orderID string, amount float64) error {
 	s.called = true
 	s.orderID = orderID
 	s.amount = amount
-	s.callOrder = *s.seq
-	*s.seq++
+	if s.callLog != nil {
+		*s.callLog = append(*s.callLog, "charge")
+	}
 	return s.err
 }
 
@@ -35,33 +32,36 @@ func (s *spyPayment) Refund(orderID string, amount float64) error {
 	s.refundCalled = true
 	s.refundOrderID = orderID
 	s.refundAmount = amount
-	s.refundCallOrder = *s.seq
-	*s.seq++
+	if s.callLog != nil {
+		*s.callLog = append(*s.callLog, "refund")
+	}
 	return s.refundErr
 }
 
 type spyDriver struct {
-	called    bool
-	orderID   string
-	driverID  string
-	callOrder int
-	err       error
-	seq       *int
+	called   bool
+	orderID  string
+	driverID string
+	err      error
+	callLog  *[]string
 }
 
 func (s *spyDriver) Assign(orderID string, driverID string) error {
 	s.called = true
 	s.orderID = orderID
 	s.driverID = driverID
-	s.callOrder = *s.seq
-	*s.seq++
+	if s.callLog != nil {
+		*s.callLog = append(*s.callLog, "assign")
+	}
 	return s.err
 }
 
 func TestCreateOrder_Success(t *testing.T) {
-	seq := 0
-	payment := &spyPayment{seq: &seq}
-	driver := &spyDriver{seq: &seq}
+	t.Parallel()
+
+	callLog := []string{}
+	payment := &spyPayment{callLog: &callLog}
+	driver := &spyDriver{callLog: &callLog}
 	idGen := func() string { return "order-123" }
 	driverSel := func() string { return "driver-abc" }
 	service := NewOrderService(payment, driver, idGen, driverSel)
@@ -85,8 +85,8 @@ func TestCreateOrder_Success(t *testing.T) {
 		t.Fatalf("expected driver.Assign to be called")
 	}
 
-	if payment.callOrder >= driver.callOrder {
-		t.Fatalf("expected payment.Charge to be called before driver.Assign; got payment=%d driver=%d", payment.callOrder, driver.callOrder)
+	if len(callLog) < 2 || callLog[0] != "charge" || callLog[1] != "assign" {
+		t.Fatalf("expected call order [charge assign], got %v", callLog)
 	}
 
 	if payment.orderID != orderID || driver.orderID != orderID || driver.driverID != "driver-abc" {
@@ -95,9 +95,11 @@ func TestCreateOrder_Success(t *testing.T) {
 }
 
 func TestCreateOrder_Compensates_On_DriverFailure(t *testing.T) {
-	seq := 0
-	payment := &spyPayment{seq: &seq}
-	driver := &spyDriver{err: errors.New("assign failed"), seq: &seq}
+	t.Parallel()
+
+	callLog := []string{}
+	payment := &spyPayment{callLog: &callLog}
+	driver := &spyDriver{err: errors.New("assign failed"), callLog: &callLog}
 	service := NewOrderService(payment, driver, func() string { return "order-456" }, func() string { return "driver-def" })
 
 	amount := 19.99
@@ -114,14 +116,20 @@ func TestCreateOrder_Compensates_On_DriverFailure(t *testing.T) {
 	if payment.refundOrderID != "order-456" || payment.refundAmount != amount {
 		t.Fatalf("refund called with wrong args: id=%s amount=%f", payment.refundOrderID, payment.refundAmount)
 	}
+
+	if len(callLog) < 3 || callLog[0] != "charge" || callLog[1] != "assign" || callLog[2] != "refund" {
+		t.Fatalf("expected call order [charge assign refund], got %v", callLog)
+	}
 }
 
 func TestCreateOrder_RefundFailureReported(t *testing.T) {
-	seq := 0
+	t.Parallel()
+
+	callLog := []string{}
 	refundErr := errors.New("refund failed")
 	driverErr := errors.New("assign failed")
-	payment := &spyPayment{refundErr: refundErr, seq: &seq}
-	driver := &spyDriver{err: driverErr, seq: &seq}
+	payment := &spyPayment{refundErr: refundErr, callLog: &callLog}
+	driver := &spyDriver{err: driverErr, callLog: &callLog}
 	service := NewOrderService(payment, driver, func() string { return "order-789" }, func() string { return "driver-ghi" })
 
 	amount := 29.99
@@ -138,13 +146,19 @@ func TestCreateOrder_RefundFailureReported(t *testing.T) {
 	if !payment.refundCalled {
 		t.Fatalf("expected refund to be attempted")
 	}
+
+	if len(callLog) < 3 || callLog[0] != "charge" || callLog[1] != "assign" || callLog[2] != "refund" {
+		t.Fatalf("expected call order [charge assign refund], got %v", callLog)
+	}
 }
 
 func TestCreateOrder_PaymentFailureStopsFlow(t *testing.T) {
-	seq := 0
+	t.Parallel()
+
 	paymentErr := errors.New("charge failed")
-	payment := &spyPayment{err: paymentErr, seq: &seq}
-	driver := &spyDriver{seq: &seq}
+	callLog := []string{}
+	payment := &spyPayment{err: paymentErr, callLog: &callLog}
+	driver := &spyDriver{callLog: &callLog}
 	service := NewOrderService(payment, driver, func() string { return "order-999" }, func() string { return "driver-jkl" })
 
 	amount := 49.99

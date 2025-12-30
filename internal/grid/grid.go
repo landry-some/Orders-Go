@@ -2,6 +2,7 @@ package grid
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"os"
 	"sync"
@@ -11,7 +12,7 @@ import (
 
 // WAL writes serialized locations for durability.
 type WAL interface {
-	Write(data []byte) error
+	Write(ctx context.Context, data []byte) error
 }
 
 // GridService stores driver locations in memory with concurrency safety.
@@ -42,14 +43,18 @@ func NewGridServiceWithRecovery(wal *FileWAL) (*GridService, error) {
 }
 
 // Update writes the location to the WAL before updating memory.
-func (g *GridService) Update(loc courier.Location) error {
+func (g *GridService) Update(ctx context.Context, loc courier.Location) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	payload, err := json.Marshal(loc)
 	if err != nil {
 		return err
 	}
 
 	if g.wal != nil {
-		if err := g.wal.Write(payload); err != nil {
+		if err := g.wal.Write(ctx, payload); err != nil {
 			return err
 		}
 	}
