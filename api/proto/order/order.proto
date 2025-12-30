@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package order;
+
+option go_package = "wayfinder/api/proto/order;orderpb";
+
+service OrderService {
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
+}
+
+message CreateOrderRequest {
+  string user_id = 1;
+  double amount = 2; // fare
+}
+
+message CreateOrderResponse {
+  string order_id = 1;
+  string status = 2;
+  string message = 3;
+}

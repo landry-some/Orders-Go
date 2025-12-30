@@ -68,12 +68,16 @@ func (g *GridService) Get(driverID string) (courier.Location, bool) {
 	return loc, ok
 }
 
-func (g *GridService) loadFromWAL(w *FileWAL) error {
+func (g *GridService) loadFromWAL(w *FileWAL) (err error) {
 	file, err := os.Open(w.f.Name())
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		if cerr := file.Close(); cerr != nil {
+			err = cerr
+		}
+	}()
 
 	g.mu.Lock()
 	defer g.mu.Unlock()

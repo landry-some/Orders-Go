@@ -5,7 +5,7 @@ import (
 	"io"
 	"time"
 
-	driverpb "wayfinder/api/proto"
+	driverpb "wayfinder/api/proto/driver"
 	"wayfinder/internal/courier"
 
 	"google.golang.org/grpc/codes"

@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.0
 // - protoc             v6.33.2
-// source: api/proto/driver.proto
+// source: api/proto/driver/driver.proto
 
 package driverpb
 
@@ -112,5 +112,5 @@ var DriverService_ServiceDesc = grpc.ServiceDesc{
 			ClientStreams: true,
 		},
 	},
-	Metadata: "api/proto/driver.proto",
+	Metadata: "api/proto/driver/driver.proto",
 }

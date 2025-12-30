@@ -15,7 +15,7 @@ func TestLocalGridPublisherPublishes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new wal: %v", err)
 	}
-	t.Cleanup(func() { wal.Close() })
+	t.Cleanup(func() { _ = wal.Close() })
 
 	g := grid.NewGridService(wal)
 	publisher := courier.NewLocalGridPublisher(g)

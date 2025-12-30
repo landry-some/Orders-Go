@@ -6,7 +6,7 @@ import (
 	"context"
 	"net"
 
-	driverpb "wayfinder/api/proto"
+	driverpb "wayfinder/api/proto/driver"
 	"wayfinder/internal/courier"
 
 	grpcpkg "google.golang.org/grpc"
@@ -45,10 +45,13 @@ func TestUpdateLocationStreamsToIngestService(t *testing.T) {
 	}()
 	t.Cleanup(func() {
 		s.Stop()
-		lis.Close()
+		if err := lis.Close(); err != nil {
+			t.Fatalf("close listener: %v", err)
+		}
 	})
 
 	ctx := context.Background()
+	//nolint:staticcheck // grpc.DialContext works with bufconn; deprecated in favor of NewClient.
 	conn, err := grpcpkg.DialContext(ctx, "bufnet",
 		grpcpkg.WithContextDialer(bufDialer(lis)),
 		grpcpkg.WithTransportCredentials(insecure.NewCredentials()),
@@ -57,7 +60,9 @@ func TestUpdateLocationStreamsToIngestService(t *testing.T) {
 		t.Fatalf("dial bufnet: %v", err)
 	}
 	t.Cleanup(func() {
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			t.Fatalf("close conn: %v", err)
+		}
 	})
 
 	client := driverpb.NewDriverServiceClient(conn)
