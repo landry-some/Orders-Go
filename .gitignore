@@ -42,3 +42,5 @@ debug.log
 Thumbs.db
 
 scripts/
+msgs.txt
+courier.log
