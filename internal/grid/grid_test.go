@@ -68,7 +68,7 @@ func TestFileWAL_WritesAndAppends(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new wal: %v", err)
 	}
-	t.Cleanup(func() { wal.Close() })
+	t.Cleanup(func() { _ = wal.Close() })
 
 	first := []byte(`{"driver":"1"}`)
 	second := []byte(`{"driver":"2"}`)
@@ -130,7 +130,7 @@ func TestGrid_RecoversFromWAL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new wal: %v", err)
 	}
-	t.Cleanup(func() { wal.Close() })
+	t.Cleanup(func() { _ = wal.Close() })
 
 	grid, err := NewGridServiceWithRecovery(wal)
 	if err != nil {

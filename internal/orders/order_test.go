@@ -1,6 +1,7 @@
 package orders
 
 import (
+	"context"
 	"errors"
 	"testing"
 )
@@ -61,15 +62,19 @@ func TestCreateOrder_Success(t *testing.T) {
 	seq := 0
 	payment := &spyPayment{seq: &seq}
 	driver := &spyDriver{seq: &seq}
-	service := &OrderService{payments: payment, drivers: driver}
+	idGen := func() string { return "order-123" }
+	driverSel := func() string { return "driver-abc" }
+	service := NewOrderService(payment, driver, idGen, driverSel)
 
-	orderID := "order-123"
 	amount := 9.99
-	driverID := "driver-abc"
 
-	err := service.CreateOrder(orderID, amount, driverID)
+	orderID, err := service.CreateOrder(context.Background(), "user-1", amount)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if orderID != "order-123" {
+		t.Fatalf("expected orderID order-123, got %s", orderID)
 	}
 
 	if !payment.called {
@@ -83,19 +88,21 @@ func TestCreateOrder_Success(t *testing.T) {
 	if payment.callOrder >= driver.callOrder {
 		t.Fatalf("expected payment.Charge to be called before driver.Assign; got payment=%d driver=%d", payment.callOrder, driver.callOrder)
 	}
+
+	if payment.orderID != orderID || driver.orderID != orderID || driver.driverID != "driver-abc" {
+		t.Fatalf("order or driver IDs mismatch payment=%s driver=%s/%s", payment.orderID, driver.orderID, driver.driverID)
+	}
 }
 
 func TestCreateOrder_Compensates_On_DriverFailure(t *testing.T) {
 	seq := 0
 	payment := &spyPayment{seq: &seq}
 	driver := &spyDriver{err: errors.New("assign failed"), seq: &seq}
-	service := &OrderService{payments: payment, drivers: driver}
+	service := NewOrderService(payment, driver, func() string { return "order-456" }, func() string { return "driver-def" })
 
-	orderID := "order-456"
 	amount := 19.99
-	driverID := "driver-def"
 
-	err := service.CreateOrder(orderID, amount, driverID)
+	_, err := service.CreateOrder(context.Background(), "user-1", amount)
 	if err == nil {
 		t.Fatalf("expected error due to driver failure, got nil")
 	}
@@ -104,7 +111,7 @@ func TestCreateOrder_Compensates_On_DriverFailure(t *testing.T) {
 		t.Fatalf("expected payment.Refund to be called")
 	}
 
-	if payment.refundOrderID != orderID || payment.refundAmount != amount {
+	if payment.refundOrderID != "order-456" || payment.refundAmount != amount {
 		t.Fatalf("refund called with wrong args: id=%s amount=%f", payment.refundOrderID, payment.refundAmount)
 	}
 }
@@ -115,13 +122,11 @@ func TestCreateOrder_RefundFailureReported(t *testing.T) {
 	driverErr := errors.New("assign failed")
 	payment := &spyPayment{refundErr: refundErr, seq: &seq}
 	driver := &spyDriver{err: driverErr, seq: &seq}
-	service := &OrderService{payments: payment, drivers: driver}
+	service := NewOrderService(payment, driver, func() string { return "order-789" }, func() string { return "driver-ghi" })
 
-	orderID := "order-789"
 	amount := 29.99
-	driverID := "driver-ghi"
 
-	err := service.CreateOrder(orderID, amount, driverID)
+	_, err := service.CreateOrder(context.Background(), "user-1", amount)
 	if err == nil {
 		t.Fatalf("expected error due to driver and refund failure, got nil")
 	}
@@ -140,13 +145,11 @@ func TestCreateOrder_PaymentFailureStopsFlow(t *testing.T) {
 	paymentErr := errors.New("charge failed")
 	payment := &spyPayment{err: paymentErr, seq: &seq}
 	driver := &spyDriver{seq: &seq}
-	service := &OrderService{payments: payment, drivers: driver}
+	service := NewOrderService(payment, driver, func() string { return "order-999" }, func() string { return "driver-jkl" })
 
-	orderID := "order-999"
 	amount := 49.99
-	driverID := "driver-jkl"
 
-	err := service.CreateOrder(orderID, amount, driverID)
+	_, err := service.CreateOrder(context.Background(), "user-1", amount)
 	if err == nil {
 		t.Fatalf("expected error due to payment failure, got nil")
 	}

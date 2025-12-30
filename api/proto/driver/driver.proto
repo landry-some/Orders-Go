@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package driver;
 
-option go_package = "api/proto;driverpb";
+option go_package = "wayfinder/api/proto/driver;driverpb";
 
 import "google/protobuf/timestamp.proto";
 

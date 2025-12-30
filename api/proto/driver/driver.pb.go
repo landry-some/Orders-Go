@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v6.33.2
-// source: api/proto/driver.proto
+// source: api/proto/driver/driver.proto
 
 package driverpb
 
@@ -34,7 +34,7 @@ type Location struct {
 
 func (x *Location) Reset() {
 	*x = Location{}
-	mi := &file_api_proto_driver_proto_msgTypes[0]
+	mi := &file_api_proto_driver_driver_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -46,7 +46,7 @@ func (x *Location) String() string {
 func (*Location) ProtoMessage() {}
 
 func (x *Location) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_driver_proto_msgTypes[0]
+	mi := &file_api_proto_driver_driver_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -59,7 +59,7 @@ func (x *Location) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Location.ProtoReflect.Descriptor instead.
 func (*Location) Descriptor() ([]byte, []int) {
-	return file_api_proto_driver_proto_rawDescGZIP(), []int{0}
+	return file_api_proto_driver_driver_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Location) GetDriverId() string {
@@ -99,7 +99,7 @@ type UpdateLocationAck struct {
 
 func (x *UpdateLocationAck) Reset() {
 	*x = UpdateLocationAck{}
-	mi := &file_api_proto_driver_proto_msgTypes[1]
+	mi := &file_api_proto_driver_driver_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -111,7 +111,7 @@ func (x *UpdateLocationAck) String() string {
 func (*UpdateLocationAck) ProtoMessage() {}
 
 func (x *UpdateLocationAck) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_driver_proto_msgTypes[1]
+	mi := &file_api_proto_driver_driver_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -124,7 +124,7 @@ func (x *UpdateLocationAck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateLocationAck.ProtoReflect.Descriptor instead.
 func (*UpdateLocationAck) Descriptor() ([]byte, []int) {
-	return file_api_proto_driver_proto_rawDescGZIP(), []int{1}
+	return file_api_proto_driver_driver_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *UpdateLocationAck) GetMessage() string {
@@ -134,11 +134,11 @@ func (x *UpdateLocationAck) GetMessage() string {
 	return ""
 }
 
-var File_api_proto_driver_proto protoreflect.FileDescriptor
+var File_api_proto_driver_driver_proto protoreflect.FileDescriptor
 
-const file_api_proto_driver_proto_rawDesc = "" +
+const file_api_proto_driver_driver_proto_rawDesc = "" +
 	"\n" +
-	"\x16api/proto/driver.proto\x12\x06driver\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9b\x01\n" +
+	"\x1dapi/proto/driver/driver.proto\x12\x06driver\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9b\x01\n" +
 	"\bLocation\x12\x1b\n" +
 	"\tdriver_id\x18\x01 \x01(\tR\bdriverId\x12\x1a\n" +
 	"\blatitude\x18\x02 \x01(\x01R\blatitude\x12\x1c\n" +
@@ -147,27 +147,27 @@ const file_api_proto_driver_proto_rawDesc = "" +
 	"\x11UpdateLocationAck\x12\x18\n" +
 	"\amessage\x18\x01 \x01(\tR\amessage2P\n" +
 	"\rDriverService\x12?\n" +
-	"\x0eUpdateLocation\x12\x10.driver.Location\x1a\x19.driver.UpdateLocationAck(\x01B\x14Z\x12api/proto;driverpbb\x06proto3"
+	"\x0eUpdateLocation\x12\x10.driver.Location\x1a\x19.driver.UpdateLocationAck(\x01B%Z#wayfinder/api/proto/driver;driverpbb\x06proto3"
 
 var (
-	file_api_proto_driver_proto_rawDescOnce sync.Once
-	file_api_proto_driver_proto_rawDescData []byte
+	file_api_proto_driver_driver_proto_rawDescOnce sync.Once
+	file_api_proto_driver_driver_proto_rawDescData []byte
 )
 
-func file_api_proto_driver_proto_rawDescGZIP() []byte {
-	file_api_proto_driver_proto_rawDescOnce.Do(func() {
-		file_api_proto_driver_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_api_proto_driver_proto_rawDesc), len(file_api_proto_driver_proto_rawDesc)))
+func file_api_proto_driver_driver_proto_rawDescGZIP() []byte {
+	file_api_proto_driver_driver_proto_rawDescOnce.Do(func() {
+		file_api_proto_driver_driver_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_api_proto_driver_driver_proto_rawDesc), len(file_api_proto_driver_driver_proto_rawDesc)))
 	})
-	return file_api_proto_driver_proto_rawDescData
+	return file_api_proto_driver_driver_proto_rawDescData
 }
 
-var file_api_proto_driver_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
-var file_api_proto_driver_proto_goTypes = []any{
+var file_api_proto_driver_driver_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_api_proto_driver_driver_proto_goTypes = []any{
 	(*Location)(nil),              // 0: driver.Location
 	(*UpdateLocationAck)(nil),     // 1: driver.UpdateLocationAck
 	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
 }
-var file_api_proto_driver_proto_depIdxs = []int32{
+var file_api_proto_driver_driver_proto_depIdxs = []int32{
 	2, // 0: driver.Location.timestamp:type_name -> google.protobuf.Timestamp
 	0, // 1: driver.DriverService.UpdateLocation:input_type -> driver.Location
 	1, // 2: driver.DriverService.UpdateLocation:output_type -> driver.UpdateLocationAck
@@ -178,26 +178,26 @@ var file_api_proto_driver_proto_depIdxs = []int32{
 	0, // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_api_proto_driver_proto_init() }
-func file_api_proto_driver_proto_init() {
-	if File_api_proto_driver_proto != nil {
+func init() { file_api_proto_driver_driver_proto_init() }
+func file_api_proto_driver_driver_proto_init() {
+	if File_api_proto_driver_driver_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_driver_proto_rawDesc), len(file_api_proto_driver_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_driver_driver_proto_rawDesc), len(file_api_proto_driver_driver_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_api_proto_driver_proto_goTypes,
-		DependencyIndexes: file_api_proto_driver_proto_depIdxs,
-		MessageInfos:      file_api_proto_driver_proto_msgTypes,
+		GoTypes:           file_api_proto_driver_driver_proto_goTypes,
+		DependencyIndexes: file_api_proto_driver_driver_proto_depIdxs,
+		MessageInfos:      file_api_proto_driver_driver_proto_msgTypes,
 	}.Build()
-	File_api_proto_driver_proto = out.File
-	file_api_proto_driver_proto_goTypes = nil
-	file_api_proto_driver_proto_depIdxs = nil
+	File_api_proto_driver_driver_proto = out.File
+	file_api_proto_driver_driver_proto_goTypes = nil
+	file_api_proto_driver_driver_proto_depIdxs = nil
 }
