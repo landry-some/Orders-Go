@@ -1,6 +1,7 @@
 package grid
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -15,7 +16,7 @@ type SpyWAL struct {
 	data   []byte
 }
 
-func (s *SpyWAL) Write(data []byte) error {
+func (s *SpyWAL) Write(ctx context.Context, data []byte) error {
 	s.called = true
 	s.data = data
 	return nil
@@ -32,7 +33,7 @@ func TestGrid_UpdateAndGet(t *testing.T) {
 		Timestamp: time.Date(2024, 1, 2, 15, 4, 5, 0, time.UTC),
 	}
 
-	if err := grid.Update(loc); err != nil {
+	if err := grid.Update(context.Background(), loc); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -73,10 +74,10 @@ func TestFileWAL_WritesAndAppends(t *testing.T) {
 	first := []byte(`{"driver":"1"}`)
 	second := []byte(`{"driver":"2"}`)
 
-	if err := wal.Write(first); err != nil {
+	if err := wal.Write(context.Background(), first); err != nil {
 		t.Fatalf("write first: %v", err)
 	}
-	if err := wal.Write(second); err != nil {
+	if err := wal.Write(context.Background(), second); err != nil {
 		t.Fatalf("write second: %v", err)
 	}
 
@@ -145,5 +146,31 @@ func TestGrid_RecoversFromWAL(t *testing.T) {
 		if got != expected {
 			t.Fatalf("got %+v, want %+v", got, expected)
 		}
+	}
+}
+
+func TestUpdate_RespectsContext(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	wal := &SpyWAL{}
+	g := NewGridService(wal)
+
+	loc := courier.Location{
+		DriverID:  "driver-ctx",
+		Lat:       1.0,
+		Long:      2.0,
+		Timestamp: time.Now(),
+	}
+
+	err := g.Update(ctx, loc)
+	if err != context.Canceled {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+
+	if wal.called {
+		t.Fatalf("expected WAL.Write not to be called on canceled context")
 	}
 }

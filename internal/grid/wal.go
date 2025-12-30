@@ -1,6 +1,7 @@
 package grid
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sync"
@@ -22,7 +23,11 @@ func NewFileWAL(path string) (*FileWAL, error) {
 }
 
 // Write appends the provided data to the WAL file.
-func (w *FileWAL) Write(data []byte) error {
+func (w *FileWAL) Write(ctx context.Context, data []byte) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
