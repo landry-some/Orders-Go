@@ -8,10 +8,10 @@ import (
 )
 
 type SpyPublisher struct {
-	called            bool
-	receivedCtx       context.Context
-	receivedLocation  Location
-	err               error
+	called           bool
+	receivedCtx      context.Context
+	receivedLocation Location
+	err              error
 }
 
 func (s *SpyPublisher) Publish(ctx context.Context, loc Location) error {
