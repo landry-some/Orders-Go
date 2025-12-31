@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"log"
 	"net"
 	"net/http"
@@ -24,6 +26,7 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -117,6 +120,15 @@ func startObservabilityServer(ctx context.Context, metrics *observability.Metric
 	}
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", observability.Handler(metrics))
+	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+		if err := readinessCheck(r.Context()); err != nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write([]byte(err.Error()))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
 
 	srv := &http.Server{
 		Addr:    cfg.Addr,
@@ -129,4 +141,36 @@ func startObservabilityServer(ctx context.Context, metrics *observability.Metric
 	}()
 
 	return srv, nil
+}
+
+func readinessCheck(ctx context.Context) error {
+	redisURL, err := config.GetRedisURL()
+	if err != nil {
+		return err
+	}
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		return errors.New("DATABASE_URL is required")
+	}
+
+	redisOpts, err := redis.ParseURL(redisURL)
+	if err != nil {
+		return err
+	}
+	rdb := redis.NewClient(redisOpts)
+	if err := rdb.Ping(ctx).Err(); err != nil {
+		_ = rdb.Close()
+		return err
+	}
+	_ = rdb.Close()
+
+	db, err := sql.Open("pgx", dbURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	if _, err := db.ExecContext(ctx, "SELECT 1"); err != nil {
+		return err
+	}
+	return nil
 }
