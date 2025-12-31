@@ -52,7 +52,7 @@ func TestPostgresDriverClient_Assign_Inserts(t *testing.T) {
 	mock.ExpectClose()
 
 	client := NewPostgresDriverClient(db)
-	if err := client.Assign("order-1", "driver-1"); err != nil {
+	if err := client.Assign(context.Background(), "order-1", "driver-1"); err != nil {
 		t.Fatalf("Assign: %v", err)
 	}
 }
@@ -71,7 +71,7 @@ func TestPostgresDriverClient_Assign_Idempotent(t *testing.T) {
 	mock.ExpectClose()
 
 	client := NewPostgresDriverClient(db)
-	if err := client.Assign("order-1", "driver-1"); err != nil {
+	if err := client.Assign(context.Background(), "order-1", "driver-1"); err != nil {
 		t.Fatalf("Assign: %v", err)
 	}
 }

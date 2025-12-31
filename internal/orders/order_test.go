@@ -48,7 +48,7 @@ type spyDriver struct {
 	callLog  *[]string
 }
 
-func (s *spyDriver) Assign(orderID string, driverID string) error {
+func (s *spyDriver) Assign(ctx context.Context, orderID string, driverID string) error {
 	s.called = true
 	s.orderID = orderID
 	s.driverID = driverID

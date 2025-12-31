@@ -39,12 +39,12 @@ func (c *PostgresDriverClient) InitSchema(ctx context.Context) error {
 }
 
 // Assign stores a driver assignment for an order.
-func (c *PostgresDriverClient) Assign(orderID string, driverID string) error {
+func (c *PostgresDriverClient) Assign(ctx context.Context, orderID string, driverID string) error {
 	if orderID == "" || driverID == "" {
 		return fmt.Errorf("order and driver ids are required")
 	}
 
-	res, err := c.db.Exec(`INSERT INTO order_assignments (order_id, driver_id) VALUES ($1, $2) ON CONFLICT (order_id) DO NOTHING`, orderID, driverID)
+	res, err := c.db.ExecContext(ctx, `INSERT INTO order_assignments (order_id, driver_id) VALUES ($1, $2) ON CONFLICT (order_id) DO NOTHING`, orderID, driverID)
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func (c *PostgresDriverClient) Assign(orderID string, driverID string) error {
 	}
 
 	var existing string
-	row := c.db.QueryRow(`SELECT driver_id FROM order_assignments WHERE order_id = $1`, orderID)
+	row := c.db.QueryRowContext(ctx, `SELECT driver_id FROM order_assignments WHERE order_id = $1`, orderID)
 	switch scanErr := row.Scan(&existing); scanErr {
 	case nil:
 		if existing == driverID {

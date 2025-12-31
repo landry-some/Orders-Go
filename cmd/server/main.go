@@ -9,7 +9,6 @@ import (
 	driverpb "wayfinder/api/proto/driver"
 	orderpb "wayfinder/api/proto/order"
 	"wayfinder/internal/adapters/grpc"
-	"wayfinder/internal/grid"
 	"wayfinder/internal/ingest"
 	"wayfinder/internal/orders"
 
@@ -20,23 +19,13 @@ import (
 )
 
 func main() {
-	wal, err := grid.NewFileWAL("courier.log")
+	locationStore, cleanupStore, err := buildLocationStore(context.Background())
 	if err != nil {
-		log.Fatalf("create WAL: %v", err)
+		log.Fatalf("location store init: %v", err)
 	}
-	defer func() {
-		if err := wal.Close(); err != nil {
-			log.Printf("close WAL: %v", err)
-		}
-	}()
+	defer cleanupStore()
 
-	g, err := grid.NewGridServiceWithRecovery(wal)
-	if err != nil {
-		log.Fatalf("init grid: %v", err)
-	}
-
-	gridPublisher := ingest.NewGridPublisher(g)
-	publisher := ingest.NewFanoutPublisher(gridPublisher, nil)
+	publisher := ingest.NewFanoutPublisher(ingest.NewGridPublisher(locationStore), nil)
 	ingestService := ingest.NewIngestService(publisher)
 
 	orderService, cleanup, err := orders.BuildOrderService(context.Background(), os.Getenv("DATABASE_URL"), log.Printf)
