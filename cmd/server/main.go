@@ -9,8 +9,8 @@ import (
 	driverpb "wayfinder/api/proto/driver"
 	orderpb "wayfinder/api/proto/order"
 	"wayfinder/internal/adapters/grpc"
-	"wayfinder/internal/courier"
 	"wayfinder/internal/grid"
+	"wayfinder/internal/ingest"
 	"wayfinder/internal/orders"
 
 	grpcpkg "google.golang.org/grpc"
@@ -35,11 +35,14 @@ func main() {
 		log.Fatalf("init grid: %v", err)
 	}
 
-	gridPublisher := courier.NewGridPublisher(g)
-	publisher := courier.NewFanoutPublisher(gridPublisher, nil)
-	ingest := courier.NewIngestService(publisher)
+	gridPublisher := ingest.NewGridPublisher(g)
+	publisher := ingest.NewFanoutPublisher(gridPublisher, nil)
+	ingestService := ingest.NewIngestService(publisher)
 
-	orderService, cleanup := orders.BuildOrderService(context.Background(), os.Getenv("DATABASE_URL"), log.Printf)
+	orderService, cleanup, err := orders.BuildOrderService(context.Background(), os.Getenv("DATABASE_URL"), log.Printf)
+	if err != nil {
+		log.Fatalf("order service init: %v", err)
+	}
 	defer cleanup()
 	orderAdapter := grpc.NewOrderServer(orderService)
 
@@ -49,7 +52,7 @@ func main() {
 	}
 
 	server := grpcpkg.NewServer()
-	driverpb.RegisterDriverServiceServer(server, grpc.NewServer(ingest))
+	driverpb.RegisterDriverServiceServer(server, grpc.NewServer(ingestService))
 	orderpb.RegisterOrderServiceServer(server, orderAdapter)
 
 	if env := os.Getenv("APP_ENV"); env != "production" {

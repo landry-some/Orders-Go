@@ -3,52 +3,59 @@ package orders
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"time"
 
-	ordersdb "wayfinder/internal/orders/db"
+	ordersdb "wayfinder/internal/db/orders"
 )
 
-// BuildOrderService wires an OrderService from config (Postgres DSN and logger).
-// If the DSN is empty or initialization fails, it falls back to in-memory payments.
-// The returned cleanup closes any external resources (e.g., DB connections).
-func BuildOrderService(ctx context.Context, dsn string, logf func(format string, args ...any)) (*OrderService, func()) {
+func BuildOrderService(ctx context.Context, dsn string, logf func(format string, args ...any)) (*OrderService, func(), error) {
 	if logf == nil {
 		logf = log.Printf
 	}
 
-	cleanup := func() {}
-	var payments PaymentClient = NewInMemoryPaymentClient()
+	if dsn == "" {
+		return nil, nil, fmt.Errorf("DATABASE_URL is required")
+	}
 
-	if dsn != "" {
-		sqlDB, err := sql.Open("pgx", dsn)
-		if err != nil {
-			logf("postgres open failed, falling back to in-memory payments: %v", err)
-		} else {
-			setupCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-			defer cancel()
+	sqlDB, err := sql.Open("pgx", dsn)
+	if err != nil {
+		return nil, nil, fmt.Errorf("postgres open failed: %w", err)
+	}
 
-			client, err := ordersdb.NewPostgresPaymentClientWithSchema(setupCtx, sqlDB)
-			if err != nil {
-				logf("postgres init failed, falling back to in-memory payments: %v", err)
-				_ = sqlDB.Close()
-			} else {
-				logf("postgres payments enabled")
-				payments = client
-				cleanup = func() {
-					if err := sqlDB.Close(); err != nil {
-						logf("close postgres: %v", err)
-					}
-				}
-			}
+	setupCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	payments, err := ordersdb.NewPostgresPaymentClientWithSchema(setupCtx, sqlDB)
+	if err != nil {
+		_ = sqlDB.Close()
+		return nil, nil, fmt.Errorf("postgres init failed: %w", err)
+	}
+
+	sagas, err := ordersdb.NewSagaStoreWithSchema(setupCtx, sqlDB)
+	if err != nil {
+		_ = sqlDB.Close()
+		return nil, nil, fmt.Errorf("saga store init failed: %w", err)
+	}
+
+	drivers, err := ordersdb.NewPostgresDriverClientWithSchema(setupCtx, sqlDB)
+	if err != nil {
+		_ = sqlDB.Close()
+		return nil, nil, fmt.Errorf("driver store init failed: %w", err)
+	}
+
+	cleanup := func() {
+		if err := sqlDB.Close(); err != nil {
+			logf("close postgres: %v", err)
 		}
 	}
 
 	return NewOrderService(
-			payments,
-			NewInMemoryDriverClient(),
-			func() string { return "order-" + time.Now().Format("20060102150405.000000000") },
-			func() string { return "driver-" + time.Now().Format("150405") },
-		),
-		cleanup
+		payments,
+		drivers,
+		sagas,
+		func() string { return "order-" + time.Now().Format("20060102150405.000000000") },
+		func() string { return "driver-" + time.Now().Format("150405") },
+	), cleanup, nil
 }

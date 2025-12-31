@@ -6,7 +6,7 @@ import (
 	"time"
 
 	driverpb "wayfinder/api/proto/driver"
-	"wayfinder/internal/courier"
+	"wayfinder/internal/ingest"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -14,7 +14,7 @@ import (
 
 // IngestService exposes the ingest behavior needed by the gRPC adapter.
 type IngestService interface {
-	Ingest(ctx context.Context, loc courier.Location) error
+	Ingest(ctx context.Context, loc ingest.Location) error
 }
 
 // Server adapts DriverService to gRPC.
@@ -47,7 +47,7 @@ func (s *Server) UpdateLocation(stream driverpb.DriverService_UpdateLocationServ
 			ts = msg.GetTimestamp().AsTime()
 		}
 
-		loc, err := courier.NewLocation(msg.GetDriverId(), msg.GetLatitude(), msg.GetLongitude(), ts)
+		loc, err := ingest.NewLocation(msg.GetDriverId(), msg.GetLatitude(), msg.GetLongitude(), ts)
 		if err != nil {
 			return status.Errorf(codes.InvalidArgument, "invalid location: %v", err)
 		}
