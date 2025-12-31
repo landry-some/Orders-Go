@@ -11,10 +11,6 @@ import (
 	"time"
 )
 
-const defaultRedisHealthcheckTimeout = 2 * time.Second
-const defaultRedisLocationTTL = 24 * time.Hour
-const defaultRedisStreamMaxLen int64 = 10000
-
 type redisConfig struct {
 	url                string
 	stream             string
@@ -24,9 +20,9 @@ type redisConfig struct {
 	poolSize           *int
 	minIdleConns       *int
 	maxRetries         *int
-	healthcheckTimeout *time.Duration
-	locationTTL        *time.Duration
-	streamMaxLen       *int64
+	healthcheckTimeout time.Duration
+	locationTTL        time.Duration
+	streamMaxLen       int64
 	enableOTel         bool
 	tlsConfig          *tls.Config
 }
@@ -60,28 +56,16 @@ func loadRedisConfigFromEnv() (redisConfig, error) {
 		return cfg, err
 	}
 
-	if cfg.healthcheckTimeout, err = parseOptionalDuration("REDIS_HEALTHCHECK_TIMEOUT"); err != nil {
+	if cfg.healthcheckTimeout, err = parseRequiredDuration("REDIS_HEALTHCHECK_TIMEOUT"); err != nil {
 		return cfg, err
-	}
-	if cfg.healthcheckTimeout == nil {
-		defaultTimeout := defaultRedisHealthcheckTimeout
-		cfg.healthcheckTimeout = &defaultTimeout
 	}
 
-	if cfg.locationTTL, err = parseOptionalDuration("REDIS_LOCATION_TTL"); err != nil {
+	if cfg.locationTTL, err = parseRequiredDuration("REDIS_LOCATION_TTL"); err != nil {
 		return cfg, err
-	}
-	if cfg.locationTTL == nil {
-		defaultTTL := defaultRedisLocationTTL
-		cfg.locationTTL = &defaultTTL
 	}
 
-	if cfg.streamMaxLen, err = parseOptionalInt64("REDIS_STREAM_MAXLEN"); err != nil {
+	if cfg.streamMaxLen, err = parseRequiredInt64("REDIS_STREAM_MAXLEN"); err != nil {
 		return cfg, err
-	}
-	if cfg.streamMaxLen == nil {
-		defaultMaxLen := defaultRedisStreamMaxLen
-		cfg.streamMaxLen = &defaultMaxLen
 	}
 
 	if cfg.enableOTel, err = parseOptionalBool("REDIS_OTEL"); err != nil {
@@ -176,19 +160,34 @@ func parseOptionalInt(name string) (*int, error) {
 	return &val, nil
 }
 
-func parseOptionalInt64(name string) (*int64, error) {
+func parseRequiredDuration(name string) (time.Duration, error) {
 	raw := strings.TrimSpace(os.Getenv(name))
 	if raw == "" {
-		return nil, nil
+		return 0, fmt.Errorf("%s is required", name)
+	}
+	val, err := time.ParseDuration(raw)
+	if err != nil {
+		return 0, fmt.Errorf("%s: %w", name, err)
+	}
+	if val < 0 {
+		return 0, fmt.Errorf("%s must be >= 0", name)
+	}
+	return val, nil
+}
+
+func parseRequiredInt64(name string) (int64, error) {
+	raw := strings.TrimSpace(os.Getenv(name))
+	if raw == "" {
+		return 0, fmt.Errorf("%s is required", name)
 	}
 	val, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", name, err)
+		return 0, fmt.Errorf("%s: %w", name, err)
 	}
 	if val < 0 {
-		return nil, fmt.Errorf("%s must be >= 0", name)
+		return 0, fmt.Errorf("%s must be >= 0", name)
 	}
-	return &val, nil
+	return val, nil
 }
 
 func parseOptionalBool(name string) (bool, error) {

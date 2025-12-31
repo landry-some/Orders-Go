@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"time"
 
 	ingestdb "wayfinder/internal/db/ingest"
 	"wayfinder/internal/ingest"
@@ -73,9 +72,9 @@ func buildLocationStore(ctx context.Context) (ingest.LocationStore, func(), erro
 	if pingCtx == nil {
 		pingCtx = context.Background()
 	}
-	if cfg.healthcheckTimeout != nil && *cfg.healthcheckTimeout > 0 {
+	if cfg.healthcheckTimeout > 0 {
 		var cancel context.CancelFunc
-		pingCtx, cancel = context.WithTimeout(pingCtx, *cfg.healthcheckTimeout)
+		pingCtx, cancel = context.WithTimeout(pingCtx, cfg.healthcheckTimeout)
 		defer cancel()
 	}
 	if err := client.Ping(pingCtx).Err(); err != nil {
@@ -96,15 +95,7 @@ func buildLocationStore(ctx context.Context) (ingest.LocationStore, func(), erro
 		return nil, nil, err
 	}
 
-	ttl := time.Duration(0)
-	if cfg.locationTTL != nil {
-		ttl = *cfg.locationTTL
-	}
-	maxLen := int64(0)
-	if cfg.streamMaxLen != nil {
-		maxLen = *cfg.streamMaxLen
-	}
-	latestStore := ingest.NewRedisLocationStore(client, cfg.stream, ttl, maxLen)
+	latestStore := ingest.NewRedisLocationStore(client, cfg.stream, cfg.locationTTL, cfg.streamMaxLen)
 	store := ingest.NewMultiLocationStore(historyStore, latestStore)
 	cleanup := func() {
 		if err := client.Close(); err != nil {

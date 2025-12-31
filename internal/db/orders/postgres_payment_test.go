@@ -74,11 +74,11 @@ func TestPostgresPayment_Charge_SucceedsOnce(t *testing.T) {
 
 	client := NewPostgresPaymentClient(db)
 
-	if err := client.Charge("order-1", 9.99); err != nil {
+	if err := client.Charge(context.Background(), "order-1", 9.99); err != nil {
 		t.Fatalf("first charge: %v", err)
 	}
 
-	err := client.Charge("order-1", 9.99)
+	err := client.Charge(context.Background(), "order-1", 9.99)
 	if err == nil {
 		t.Fatalf("expected duplicate charge error")
 	}
@@ -98,7 +98,7 @@ func TestPostgresPayment_Refund_Succeeds(t *testing.T) {
 
 	client := NewPostgresPaymentClient(db)
 
-	if err := client.Refund("order-1", 9.99); err != nil {
+	if err := client.Refund(context.Background(), "order-1", 9.99); err != nil {
 		t.Fatalf("refund: %v", err)
 	}
 }
@@ -118,7 +118,7 @@ func TestPostgresPayment_Refund_NotCharged(t *testing.T) {
 
 	client := NewPostgresPaymentClient(db)
 
-	err := client.Refund("order-404", 5.0)
+	err := client.Refund(context.Background(), "order-404", 5.0)
 	if err == nil {
 		t.Fatalf("expected error")
 	}
@@ -142,7 +142,7 @@ func TestPostgresPayment_Refund_AlreadyRefunded(t *testing.T) {
 
 	client := NewPostgresPaymentClient(db)
 
-	err := client.Refund("order-1", 9.99)
+	err := client.Refund(context.Background(), "order-1", 9.99)
 	if err == nil {
 		t.Fatalf("expected error")
 	}

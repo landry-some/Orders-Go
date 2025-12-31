@@ -20,7 +20,7 @@ type spyPayment struct {
 	callLog       *[]string
 }
 
-func (s *spyPayment) Charge(orderID string, amount float64) error {
+func (s *spyPayment) Charge(ctx context.Context, orderID string, amount float64) error {
 	s.called = true
 	s.orderID = orderID
 	s.amount = amount
@@ -30,7 +30,7 @@ func (s *spyPayment) Charge(orderID string, amount float64) error {
 	return s.err
 }
 
-func (s *spyPayment) Refund(orderID string, amount float64) error {
+func (s *spyPayment) Refund(ctx context.Context, orderID string, amount float64) error {
 	s.refundCalled = true
 	s.refundOrderID = orderID
 	s.refundAmount = amount
