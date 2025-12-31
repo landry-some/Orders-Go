@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	orderpb "wayfinder/api/proto/order"
+	"wayfinder/internal/orders"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -20,7 +21,7 @@ type spyOrderService struct {
 	err     error
 }
 
-func (s *spyOrderService) CreateOrder(ctx context.Context, userID string, amount float64) (string, error) {
+func (s *spyOrderService) CreateOrder(ctx context.Context, userID string, amount float64, idempotencyKey string) (string, error) {
 	return s.orderID, s.err
 }
 
@@ -29,8 +30,9 @@ func TestCreateOrder_Success(t *testing.T) {
 	server := NewOrderServer(svc)
 
 	resp, err := server.CreateOrder(context.Background(), &orderpb.CreateOrderRequest{
-		UserId: "user-1",
-		Amount: 12.34,
+		UserId:         "user-1",
+		Amount:         12.34,
+		IdempotencyKey: "idem-1",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -46,8 +48,9 @@ func TestCreateOrder_PaymentFailureMapsToFailedPrecondition(t *testing.T) {
 	server := NewOrderServer(svc)
 
 	_, err := server.CreateOrder(context.Background(), &orderpb.CreateOrderRequest{
-		UserId: "user-1",
-		Amount: 12.34,
+		UserId:         "user-1",
+		Amount:         12.34,
+		IdempotencyKey: "idem-1",
 	})
 	if err == nil {
 		t.Fatalf("expected error, got nil")
@@ -63,14 +66,51 @@ func TestCreateOrder_GenericErrorMapsToInternal(t *testing.T) {
 	server := NewOrderServer(svc)
 
 	_, err := server.CreateOrder(context.Background(), &orderpb.CreateOrderRequest{
-		UserId: "user-1",
-		Amount: 12.34,
+		UserId:         "user-1",
+		Amount:         12.34,
+		IdempotencyKey: "idem-1",
 	})
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
 
 	if status.Code(err) != codes.Internal {
+		t.Fatalf("unexpected status code: %v", status.Code(err))
+	}
+}
+
+func TestCreateOrder_IdempotencyMissingMapsToInvalidArgument(t *testing.T) {
+	svc := &spyOrderService{err: orders.ErrIdempotencyKeyRequired}
+	server := NewOrderServer(svc)
+
+	_, err := server.CreateOrder(context.Background(), &orderpb.CreateOrderRequest{
+		UserId:         "user-1",
+		Amount:         12.34,
+		IdempotencyKey: "",
+	})
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("unexpected status code: %v", status.Code(err))
+	}
+}
+
+func TestCreateOrder_IdempotencyConflictMapsToFailedPrecondition(t *testing.T) {
+	svc := &spyOrderService{err: orders.ErrIdempotencyConflict}
+	server := NewOrderServer(svc)
+
+	_, err := server.CreateOrder(context.Background(), &orderpb.CreateOrderRequest{
+		UserId:         "user-1",
+		Amount:         12.34,
+		IdempotencyKey: "idem-1",
+	})
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+
+	if status.Code(err) != codes.FailedPrecondition {
 		t.Fatalf("unexpected status code: %v", status.Code(err))
 	}
 }

@@ -1,12 +1,12 @@
-package courier_test
+package ingest_test
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"wayfinder/internal/courier"
 	"wayfinder/internal/grid"
+	"wayfinder/internal/ingest"
 )
 
 func TestLocalGridPublisherPublishes(t *testing.T) {
@@ -18,9 +18,9 @@ func TestLocalGridPublisherPublishes(t *testing.T) {
 	t.Cleanup(func() { _ = wal.Close() })
 
 	g := grid.NewGridService(wal)
-	publisher := courier.NewGridPublisher(g)
+	publisher := ingest.NewGridPublisher(g)
 
-	loc := courier.Location{
+	loc := ingest.Location{
 		DriverID:  "driver-123",
 		Lat:       37.7749,
 		Long:      -122.4194,

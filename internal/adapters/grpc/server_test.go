@@ -7,7 +7,7 @@ import (
 	"net"
 
 	driverpb "wayfinder/api/proto/driver"
-	"wayfinder/internal/courier"
+	"wayfinder/internal/ingest"
 
 	grpcpkg "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -19,10 +19,10 @@ func TestServerImplementsDriverServiceServer(t *testing.T) {
 }
 
 type spyIngestService struct {
-	received []courier.Location
+	received []ingest.Location
 }
 
-func (s *spyIngestService) Ingest(ctx context.Context, loc courier.Location) error {
+func (s *spyIngestService) Ingest(ctx context.Context, loc ingest.Location) error {
 	s.received = append(s.received, loc)
 	return nil
 }

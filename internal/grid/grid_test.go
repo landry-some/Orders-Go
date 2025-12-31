@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"wayfinder/internal/courier"
+	"wayfinder/internal/ingest"
 )
 
 type SpyWAL struct {
@@ -26,7 +26,7 @@ func TestGrid_UpdateAndGet(t *testing.T) {
 	wal := &SpyWAL{}
 	grid := NewGridService(wal)
 
-	loc := courier.Location{
+	loc := ingest.Location{
 		DriverID:  "driver-123",
 		Lat:       37.7749,
 		Long:      -122.4194,
@@ -98,7 +98,7 @@ func TestGrid_RecoversFromWAL(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "wal.log")
 
-	locs := []courier.Location{
+	locs := []ingest.Location{
 		{
 			DriverID:  "driver-1",
 			Lat:       10.0,
@@ -158,7 +158,7 @@ func TestUpdate_RespectsContext(t *testing.T) {
 	wal := &SpyWAL{}
 	g := NewGridService(wal)
 
-	loc := courier.Location{
+	loc := ingest.Location{
 		DriverID:  "driver-ctx",
 		Lat:       1.0,
 		Long:      2.0,

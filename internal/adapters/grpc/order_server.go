@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	orderpb "wayfinder/api/proto/order"
+	"wayfinder/internal/orders"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -13,7 +14,7 @@ import (
 
 // OrderService defines the behavior needed by the gRPC adapter.
 type OrderService interface {
-	CreateOrder(ctx context.Context, userID string, amount float64) (string, error)
+	CreateOrder(ctx context.Context, userID string, amount float64, idempotencyKey string) (string, error)
 }
 
 // OrderServer adapts OrderService to gRPC.
@@ -29,7 +30,7 @@ func NewOrderServer(svc OrderService) *OrderServer {
 
 // CreateOrder handles the gRPC request and maps domain errors to gRPC status codes.
 func (s *OrderServer) CreateOrder(ctx context.Context, req *orderpb.CreateOrderRequest) (*orderpb.CreateOrderResponse, error) {
-	orderID, err := s.service.CreateOrder(ctx, req.GetUserId(), req.GetAmount())
+	orderID, err := s.service.CreateOrder(ctx, req.GetUserId(), req.GetAmount(), req.GetIdempotencyKey())
 	if err != nil {
 		return nil, mapOrderError(err)
 	}
@@ -47,6 +48,12 @@ func mapOrderError(err error) error {
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
 		return status.Error(codes.DeadlineExceeded, err.Error())
+	}
+	if errors.Is(err, orders.ErrIdempotencyKeyRequired) {
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+	if errors.Is(err, orders.ErrIdempotencyConflict) {
+		return status.Error(codes.FailedPrecondition, err.Error())
 	}
 	if strings.Contains(strings.ToLower(err.Error()), "payment failed") {
 		return status.Error(codes.FailedPrecondition, err.Error())

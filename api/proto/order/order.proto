@@ -10,7 +10,8 @@ service OrderService {
 
 message CreateOrderRequest {
   string user_id = 1;
-  double amount = 2; // fare
+  double amount = 2;
+  string idempotency_key = 3;
 }
 
 message CreateOrderResponse {

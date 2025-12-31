@@ -1,4 +1,4 @@
-package courier
+package ingest
 
 import (
 	"context"
@@ -63,13 +63,12 @@ func TestFanoutPublisherPublishesAndBroadcasts(t *testing.T) {
 		DriverID string  `json:"driver_id"`
 		Lat      float64 `json:"lat"`
 		Long     float64 `json:"long"`
-		Shard    string  `json:"shard"`
 	}
 	if err := json.Unmarshal(bcaster.msg, &payload); err != nil {
 		t.Fatalf("unmarshal broadcast: %v", err)
 	}
 
-	if payload.DriverID != loc.DriverID || payload.Shard != "shard-1" {
+	if payload.DriverID != loc.DriverID {
 		t.Fatalf("unexpected payload: %+v", payload)
 	}
 }

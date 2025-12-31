@@ -7,7 +7,7 @@ import (
 	"os"
 	"sync"
 
-	"wayfinder/internal/courier"
+	"wayfinder/internal/ingest"
 )
 
 // WAL writes serialized locations for durability.
@@ -18,14 +18,14 @@ type WAL interface {
 // GridService stores driver locations in memory with concurrency safety.
 type GridService struct {
 	mu        sync.RWMutex
-	locations map[string]courier.Location
+	locations map[string]ingest.Location
 	wal       WAL
 }
 
 // NewGridService constructs a GridService with an initialized map and WAL.
 func NewGridService(wal WAL) *GridService {
 	return &GridService{
-		locations: make(map[string]courier.Location),
+		locations: make(map[string]ingest.Location),
 		wal:       wal,
 	}
 }
@@ -33,7 +33,7 @@ func NewGridService(wal WAL) *GridService {
 // NewGridServiceWithRecovery constructs a GridService and replays the WAL into memory.
 func NewGridServiceWithRecovery(wal *FileWAL) (*GridService, error) {
 	g := &GridService{
-		locations: make(map[string]courier.Location),
+		locations: make(map[string]ingest.Location),
 		wal:       wal,
 	}
 	if err := g.loadFromWAL(wal); err != nil {
@@ -43,7 +43,7 @@ func NewGridServiceWithRecovery(wal *FileWAL) (*GridService, error) {
 }
 
 // Update writes the location to the WAL before updating memory.
-func (g *GridService) Update(ctx context.Context, loc courier.Location) error {
+func (g *GridService) Update(ctx context.Context, loc ingest.Location) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func (g *GridService) Update(ctx context.Context, loc courier.Location) error {
 }
 
 // Get retrieves the driver's location if present.
-func (g *GridService) Get(driverID string) (courier.Location, bool) {
+func (g *GridService) Get(driverID string) (ingest.Location, bool) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 	loc, ok := g.locations[driverID]
@@ -89,7 +89,7 @@ func (g *GridService) loadFromWAL(w *FileWAL) (err error) {
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		var loc courier.Location
+		var loc ingest.Location
 		if err := json.Unmarshal(scanner.Bytes(), &loc); err != nil {
 			return err
 		}
