@@ -91,6 +91,11 @@ func LoadRedis() (RedisConfig, error) {
 	return cfg, nil
 }
 
+// GetRedisURL returns the required Redis URL from env.
+func GetRedisURL() (string, error) {
+	return requiredString("REDIS_URL")
+}
+
 // LoadGRPC reads gRPC ingress rate limit settings from env.
 func LoadGRPC() (GRPCConfig, error) {
 	interval, err := requiredDuration("GRPC_RATE_LIMIT_INTERVAL")
