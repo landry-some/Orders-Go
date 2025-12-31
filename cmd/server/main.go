@@ -20,6 +20,7 @@ import (
 	"wayfinder/internal/observability"
 	"wayfinder/internal/orders"
 
+	"github.com/joho/godotenv"
 	grpcpkg "google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -30,6 +31,8 @@ import (
 )
 
 func main() {
+	_ = godotenv.Load()
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
