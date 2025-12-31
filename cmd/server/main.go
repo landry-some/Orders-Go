@@ -4,14 +4,18 @@ import (
 	"context"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	driverpb "wayfinder/api/proto/driver"
 	orderpb "wayfinder/api/proto/order"
+	"wayfinder/cmd/server/config"
 	"wayfinder/internal/adapters/grpc"
 	"wayfinder/internal/ingest"
+	"wayfinder/internal/observability"
 	"wayfinder/internal/orders"
 
 	grpcpkg "google.golang.org/grpc"
@@ -53,15 +57,16 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	grpcCfg, err := loadGrpcConfigFromEnv()
+	grpcCfg, err := config.LoadGRPC()
 	if err != nil {
 		return err
 	}
-	limiter := newGrpcRateLimiter(grpcCfg.rateLimitInterval, grpcCfg.rateLimitBurst)
+	metrics := observability.NewMetrics()
+	limiter := newGrpcRateLimiter(grpcCfg.RateLimitInterval, grpcCfg.RateLimitBurst, metrics.AddRateLimitWait)
 
 	server := grpcpkg.NewServer(
-		grpcpkg.UnaryInterceptor(rateLimitUnaryInterceptor(limiter)),
-		grpcpkg.StreamInterceptor(rateLimitStreamInterceptor(limiter)),
+		grpcpkg.UnaryInterceptor(rateLimitUnaryInterceptor(limiter, metrics)),
+		grpcpkg.StreamInterceptor(rateLimitStreamInterceptor(limiter, metrics)),
 	)
 	driverpb.RegisterDriverServiceServer(server, grpc.NewServer(ingestService))
 	orderpb.RegisterOrderServiceServer(server, orderAdapter)
@@ -78,6 +83,11 @@ func run(ctx context.Context) error {
 	}
 
 	log.Println("Server running on :50051...")
+	obsSrv, obsErr := startObservabilityServer(ctx, metrics)
+	if obsErr != nil {
+		return obsErr
+	}
+
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- server.Serve(lis)
@@ -89,8 +99,34 @@ func run(ctx context.Context) error {
 		healthServer.SetServingStatus(orderpb.OrderService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_NOT_SERVING)
 		healthServer.SetServingStatus("", healthpb.HealthCheckResponse_NOT_SERVING)
 		server.GracefulStop()
+		if obsSrv != nil {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			_ = obsSrv.Shutdown(shutdownCtx)
+		}
 		return nil
 	case err := <-errCh:
 		return err
 	}
+}
+
+func startObservabilityServer(ctx context.Context, metrics *observability.Metrics) (*http.Server, error) {
+	cfg, err := config.LoadObservability()
+	if err != nil {
+		return nil, err
+	}
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", observability.Handler(metrics))
+
+	srv := &http.Server{
+		Addr:    cfg.Addr,
+		Handler: mux,
+	}
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Printf("observability server error: %v", err)
+		}
+	}()
+
+	return srv, nil
 }
