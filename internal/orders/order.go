@@ -11,8 +11,8 @@ import (
 
 // PaymentClient charges a payment instrument for an order.
 type PaymentClient interface {
-	Charge(orderID string, amount float64) error
-	Refund(orderID string, amount float64) error
+	Charge(ctx context.Context, orderID string, amount float64) error
+	Refund(ctx context.Context, orderID string, amount float64) error
 }
 
 // DriverClient assigns a driver to an order.
@@ -82,7 +82,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID string, amount fl
 	}
 
 	_ = s.sagas.AddStep(ctx, orderID, "charge", "started", "")
-	if err := s.payments.Charge(orderID, amount); err != nil {
+	if err := s.payments.Charge(ctx, orderID, amount); err != nil {
 		_ = s.sagas.AddStep(ctx, orderID, "charge", "failed", err.Error())
 		_ = s.sagas.UpdateStatus(ctx, orderID, saga.SagaStatusFailed)
 		return "", err
@@ -94,7 +94,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID string, amount fl
 		_ = s.sagas.AddStep(ctx, orderID, "assign", "failed", err.Error())
 		// Compensate by refunding the payment if driver assignment fails.
 		_ = s.sagas.AddStep(ctx, orderID, "refund", "started", "")
-		if refundErr := s.payments.Refund(orderID, amount); refundErr != nil {
+		if refundErr := s.payments.Refund(ctx, orderID, amount); refundErr != nil {
 			_ = s.sagas.AddStep(ctx, orderID, "refund", "failed", refundErr.Error())
 			_ = s.sagas.UpdateStatus(ctx, orderID, saga.SagaStatusFailed)
 			return "", fmt.Errorf("driver assignment failed: %w; refund failed: %v", err, refundErr)

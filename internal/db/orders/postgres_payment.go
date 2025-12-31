@@ -49,12 +49,12 @@ var ErrNotCharged = errors.New("order not charged")
 // ErrAlreadyRefunded signals an order has already been refunded.
 var ErrAlreadyRefunded = errors.New("order already refunded")
 
-func (p *PostgresPaymentClient) Charge(orderID string, amount float64) error {
+func (p *PostgresPaymentClient) Charge(ctx context.Context, orderID string, amount float64) error {
 	if orderID == "" {
 		return fmt.Errorf("order id required")
 	}
 
-	res, err := p.db.Exec(`INSERT INTO payments (order_id, amount) VALUES ($1, $2) ON CONFLICT (order_id) DO NOTHING`, orderID, amount)
+	res, err := p.db.ExecContext(ctx, `INSERT INTO payments (order_id, amount) VALUES ($1, $2) ON CONFLICT (order_id) DO NOTHING`, orderID, amount)
 	if err != nil {
 		return err
 	}
@@ -70,12 +70,12 @@ func (p *PostgresPaymentClient) Charge(orderID string, amount float64) error {
 	return nil
 }
 
-func (p *PostgresPaymentClient) Refund(orderID string, amount float64) error {
+func (p *PostgresPaymentClient) Refund(ctx context.Context, orderID string, amount float64) error {
 	if orderID == "" {
 		return fmt.Errorf("order id required")
 	}
 
-	res, err := p.db.Exec(`UPDATE payments SET refund_amount = $2, refunded_at = NOW() WHERE order_id = $1 AND refunded_at IS NULL`, orderID, amount)
+	res, err := p.db.ExecContext(ctx, `UPDATE payments SET refund_amount = $2, refunded_at = NOW() WHERE order_id = $1 AND refunded_at IS NULL`, orderID, amount)
 	if err != nil {
 		return err
 	}
@@ -89,7 +89,7 @@ func (p *PostgresPaymentClient) Refund(orderID string, amount float64) error {
 	}
 
 	var refunded bool
-	row := p.db.QueryRow(`SELECT refunded_at IS NOT NULL FROM payments WHERE order_id = $1`, orderID)
+	row := p.db.QueryRowContext(ctx, `SELECT refunded_at IS NOT NULL FROM payments WHERE order_id = $1`, orderID)
 	switch scanErr := row.Scan(&refunded); scanErr {
 	case nil:
 		if refunded {

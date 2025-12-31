@@ -45,6 +45,31 @@ func BuildOrderService(ctx context.Context, dsn string, logf func(format string,
 		return nil, nil, fmt.Errorf("driver store init failed: %w", err)
 	}
 
+	reliabilityCfg, err := loadReliabilityConfigFromEnv()
+	if err != nil {
+		_ = sqlDB.Close()
+		return nil, nil, fmt.Errorf("reliability config: %w", err)
+	}
+
+	retryPolicy := RetryPolicy{
+		MaxAttempts: reliabilityCfg.RetryMaxAttempts,
+		BaseDelay:   reliabilityCfg.RetryBaseDelay,
+		MaxDelay:    reliabilityCfg.RetryMaxDelay,
+	}
+	paymentLimiter := NewRateLimiter(reliabilityCfg.RateLimitInterval, reliabilityCfg.RateLimitBurst)
+	driverLimiter := NewRateLimiter(reliabilityCfg.RateLimitInterval, reliabilityCfg.RateLimitBurst)
+	paymentBreaker := NewCircuitBreaker(CircuitBreakerConfig{
+		MaxFailures:  reliabilityCfg.BreakerMaxFailures,
+		ResetTimeout: reliabilityCfg.BreakerResetTimeout,
+	})
+	driverBreaker := NewCircuitBreaker(CircuitBreakerConfig{
+		MaxFailures:  reliabilityCfg.BreakerMaxFailures,
+		ResetTimeout: reliabilityCfg.BreakerResetTimeout,
+	})
+
+	reliablePayments := NewReliablePaymentClient(payments, paymentLimiter, paymentBreaker, retryPolicy)
+	reliableDrivers := NewReliableDriverClient(drivers, driverLimiter, driverBreaker, retryPolicy)
+
 	cleanup := func() {
 		if err := sqlDB.Close(); err != nil {
 			logf("close postgres: %v", err)
@@ -52,8 +77,8 @@ func BuildOrderService(ctx context.Context, dsn string, logf func(format string,
 	}
 
 	return NewOrderService(
-		payments,
-		drivers,
+		reliablePayments,
+		reliableDrivers,
 		sagas,
 		func() string { return "order-" + time.Now().Format("20060102150405.000000000") },
 		func() string { return "driver-" + time.Now().Format("150405") },

@@ -56,13 +56,13 @@ func TestLoadRedisConfigFromEnv_ParsesOverrides(t *testing.T) {
 	if cfg.maxRetries == nil || *cfg.maxRetries != 4 {
 		t.Fatalf("expected max retries to be set, got %+v", cfg.maxRetries)
 	}
-	if cfg.healthcheckTimeout == nil || *cfg.healthcheckTimeout != 400*time.Millisecond {
+	if cfg.healthcheckTimeout != 400*time.Millisecond {
 		t.Fatalf("expected healthcheck timeout to be set, got %+v", cfg.healthcheckTimeout)
 	}
-	if cfg.locationTTL == nil || *cfg.locationTTL != 30*time.Minute {
+	if cfg.locationTTL != 30*time.Minute {
 		t.Fatalf("expected location TTL to be set, got %+v", cfg.locationTTL)
 	}
-	if cfg.streamMaxLen == nil || *cfg.streamMaxLen != 250 {
+	if cfg.streamMaxLen != 250 {
 		t.Fatalf("expected stream max len to be set, got %+v", cfg.streamMaxLen)
 	}
 	if !cfg.enableOTel {
@@ -73,6 +73,9 @@ func TestLoadRedisConfigFromEnv_ParsesOverrides(t *testing.T) {
 func TestLoadRedisConfigFromEnv_InvalidDuration(t *testing.T) {
 	t.Setenv("REDIS_URL", "redis://localhost:6379/0")
 	t.Setenv("REDIS_DIAL_TIMEOUT", "bad")
+	t.Setenv("REDIS_HEALTHCHECK_TIMEOUT", "400ms")
+	t.Setenv("REDIS_LOCATION_TTL", "30m")
+	t.Setenv("REDIS_STREAM_MAXLEN", "250")
 
 	if _, err := loadRedisConfigFromEnv(); err == nil {
 		t.Fatalf("expected invalid duration error")
@@ -116,6 +119,8 @@ func TestBuildLocationStore_PingFails(t *testing.T) {
 	t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/dbname?sslmode=disable")
 	t.Setenv("REDIS_DIAL_TIMEOUT", "20ms")
 	t.Setenv("REDIS_HEALTHCHECK_TIMEOUT", "30ms")
+	t.Setenv("REDIS_LOCATION_TTL", "1h")
+	t.Setenv("REDIS_STREAM_MAXLEN", "10")
 
 	if _, _, err := buildLocationStore(context.Background()); err == nil {
 		t.Fatalf("expected ping failure")
