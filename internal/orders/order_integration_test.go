@@ -24,7 +24,7 @@ type failingDriver struct {
 	err error
 }
 
-func (f failingDriver) Assign(orderID string, driverID string) error {
+func (f failingDriver) Assign(ctx context.Context, orderID string, driverID string) error {
 	return f.err
 }
 

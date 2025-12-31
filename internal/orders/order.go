@@ -17,7 +17,7 @@ type PaymentClient interface {
 
 // DriverClient assigns a driver to an order.
 type DriverClient interface {
-	Assign(orderID string, driverID string) error
+	Assign(ctx context.Context, orderID string, driverID string) error
 }
 
 // IDGenerator returns a new order ID.
@@ -90,7 +90,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID string, amount fl
 	_ = s.sagas.AddStep(ctx, orderID, "charge", "succeeded", "")
 
 	_ = s.sagas.AddStep(ctx, orderID, "assign", "started", "")
-	if err := s.drivers.Assign(orderID, driverID); err != nil {
+	if err := s.drivers.Assign(ctx, orderID, driverID); err != nil {
 		_ = s.sagas.AddStep(ctx, orderID, "assign", "failed", err.Error())
 		// Compensate by refunding the payment if driver assignment fails.
 		_ = s.sagas.AddStep(ctx, orderID, "refund", "started", "")
