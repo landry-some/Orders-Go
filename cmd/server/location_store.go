@@ -7,7 +7,9 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
+	"wayfinder/cmd/server/config"
 	ingestdb "wayfinder/internal/db/ingest"
 	"wayfinder/internal/ingest"
 
@@ -20,7 +22,7 @@ var openLocationDB = func(driver, dsn string) (*sql.DB, error) {
 }
 
 func buildLocationStore(ctx context.Context) (ingest.LocationStore, func(), error) {
-	cfg, err := loadRedisConfigFromEnv()
+	cfg, err := config.LoadRedis()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -30,34 +32,34 @@ func buildLocationStore(ctx context.Context) (ingest.LocationStore, func(), erro
 		return nil, nil, errors.New("DATABASE_URL is required")
 	}
 
-	opts, err := redis.ParseURL(cfg.url)
+	opts, err := redis.ParseURL(cfg.URL)
 	if err != nil {
 		return nil, nil, err
 	}
-	if cfg.dialTimeout != nil {
-		opts.DialTimeout = *cfg.dialTimeout
+	if cfg.DialTimeout != nil {
+		opts.DialTimeout = *cfg.DialTimeout
 	}
-	if cfg.readTimeout != nil {
-		opts.ReadTimeout = *cfg.readTimeout
+	if cfg.ReadTimeout != nil {
+		opts.ReadTimeout = *cfg.ReadTimeout
 	}
-	if cfg.writeTimeout != nil {
-		opts.WriteTimeout = *cfg.writeTimeout
+	if cfg.WriteTimeout != nil {
+		opts.WriteTimeout = *cfg.WriteTimeout
 	}
-	if cfg.poolSize != nil {
-		opts.PoolSize = *cfg.poolSize
+	if cfg.PoolSize != nil {
+		opts.PoolSize = *cfg.PoolSize
 	}
-	if cfg.minIdleConns != nil {
-		opts.MinIdleConns = *cfg.minIdleConns
+	if cfg.MinIdleConns != nil {
+		opts.MinIdleConns = *cfg.MinIdleConns
 	}
-	if cfg.maxRetries != nil {
-		opts.MaxRetries = *cfg.maxRetries
+	if cfg.MaxRetries != nil {
+		opts.MaxRetries = *cfg.MaxRetries
 	}
-	if cfg.tlsConfig != nil {
-		opts.TLSConfig = cfg.tlsConfig
+	if cfg.TLSConfig != nil {
+		opts.TLSConfig = cfg.TLSConfig
 	}
 
 	client := redis.NewClient(opts)
-	if cfg.enableOTel {
+	if cfg.EnableOTel {
 		if err := redisotel.InstrumentTracing(client); err != nil {
 			_ = client.Close()
 			return nil, nil, err
@@ -72,9 +74,9 @@ func buildLocationStore(ctx context.Context) (ingest.LocationStore, func(), erro
 	if pingCtx == nil {
 		pingCtx = context.Background()
 	}
-	if cfg.healthcheckTimeout > 0 {
+	if cfg.HealthcheckTimeout > 0 {
 		var cancel context.CancelFunc
-		pingCtx, cancel = context.WithTimeout(pingCtx, cfg.healthcheckTimeout)
+		pingCtx, cancel = context.WithTimeout(pingCtx, cfg.HealthcheckTimeout)
 		defer cancel()
 	}
 	if err := client.Ping(pingCtx).Err(); err != nil {
@@ -95,7 +97,7 @@ func buildLocationStore(ctx context.Context) (ingest.LocationStore, func(), erro
 		return nil, nil, err
 	}
 
-	latestStore := ingest.NewRedisLocationStore(client, cfg.stream, cfg.locationTTL, cfg.streamMaxLen)
+	latestStore := ingest.NewRedisLocationStore(client, cfg.Stream, time.Duration(cfg.LocationTTL), cfg.StreamMaxLen)
 	store := ingest.NewMultiLocationStore(historyStore, latestStore)
 	cleanup := func() {
 		if err := client.Close(); err != nil {

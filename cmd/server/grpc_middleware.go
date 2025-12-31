@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"wayfinder/internal/observability"
+
 	"google.golang.org/grpc"
 )
 
@@ -12,24 +14,27 @@ type rateLimiter interface {
 	Wait(ctx context.Context) error
 }
 
+// grpcRateLimiter is a simple token bucket limiter.
 type grpcRateLimiter struct {
-	mu    sync.Mutex
-	rate  time.Duration
-	burst int
-	now   func() time.Time
-	sleep func(context.Context, time.Duration) error
+	mu     sync.Mutex
+	rate   time.Duration
+	burst  int
+	now    func() time.Time
+	sleep  func(context.Context, time.Duration) error
+	onWait func(time.Duration)
 
 	tokens int
 	last   time.Time
 }
 
-func newGrpcRateLimiter(rate time.Duration, burst int) *grpcRateLimiter {
+func newGrpcRateLimiter(rate time.Duration, burst int, onWait func(time.Duration)) *grpcRateLimiter {
 	now := time.Now
 	limiter := &grpcRateLimiter{
-		rate:  rate,
-		burst: burst,
-		now:   now,
-		sleep: sleepWithContext,
+		rate:   rate,
+		burst:  burst,
+		now:    now,
+		sleep:  sleepWithContext,
+		onWait: onWait,
 	}
 	limiter.tokens = burst
 	limiter.last = now()
@@ -61,6 +66,9 @@ func (r *grpcRateLimiter) Wait(ctx context.Context) error {
 		if wait <= 0 {
 			continue
 		}
+		if r.onWait != nil {
+			r.onWait(wait)
+		}
 		if err := r.sleep(ctx, wait); err != nil {
 			return err
 		}
@@ -91,6 +99,8 @@ func (r *grpcRateLimiter) refill(now time.Time) {
 type rateLimitedServerStream struct {
 	grpc.ServerStream
 	limiter rateLimiter
+	metrics *observability.Metrics
+	method  string
 }
 
 func (s *rateLimitedServerStream) RecvMsg(m any) error {
@@ -99,29 +109,52 @@ func (s *rateLimitedServerStream) RecvMsg(m any) error {
 			return err
 		}
 	}
-	return s.ServerStream.RecvMsg(m)
+	span := &observability.CallSpan{}
+	if s.metrics != nil {
+		span = s.metrics.Start(s.method)
+	}
+	err := s.ServerStream.RecvMsg(m)
+	span.End(err)
+	return err
 }
 
-func rateLimitUnaryInterceptor(limiter rateLimiter) grpc.UnaryServerInterceptor {
+func rateLimitUnaryInterceptor(limiter rateLimiter, metrics *observability.Metrics) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+		span := &observability.CallSpan{}
+		if metrics != nil {
+			span = metrics.Start(info.FullMethod)
+		}
 		if limiter != nil {
 			if err := limiter.Wait(ctx); err != nil {
+				span.End(err)
 				return nil, err
 			}
 		}
-		return handler(ctx, req)
+		resp, err := handler(ctx, req)
+		span.End(err)
+		return resp, err
 	}
 }
 
-func rateLimitStreamInterceptor(limiter rateLimiter) grpc.StreamServerInterceptor {
+func rateLimitStreamInterceptor(limiter rateLimiter, metrics *observability.Metrics) grpc.StreamServerInterceptor {
 	return func(srv any, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		span := &observability.CallSpan{}
+		if metrics != nil {
+			span = metrics.Start(info.FullMethod)
+		}
 		if limiter == nil {
-			return handler(srv, stream)
+			err := handler(srv, stream)
+			span.End(err)
+			return err
 		}
 		wrapped := &rateLimitedServerStream{
 			ServerStream: stream,
 			limiter:      limiter,
+			metrics:      metrics,
+			method:       info.FullMethod,
 		}
-		return handler(srv, wrapped)
+		err := handler(srv, wrapped)
+		span.End(err)
+		return err
 	}
 }
