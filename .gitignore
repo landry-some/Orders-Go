@@ -45,3 +45,4 @@ scripts/
 courier.log
 driver_msgs.txt
 order_msgs.txt
+obs.cov
