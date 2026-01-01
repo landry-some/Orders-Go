@@ -114,3 +114,39 @@ func TestCreateOrder_IdempotencyConflictMapsToFailedPrecondition(t *testing.T) {
 		t.Fatalf("unexpected status code: %v", status.Code(err))
 	}
 }
+
+func TestCreateOrder_ContextCanceledMapsToCanceled(t *testing.T) {
+	svc := &spyOrderService{err: context.Canceled}
+	server := NewOrderServer(svc)
+
+	_, err := server.CreateOrder(context.Background(), &orderpb.CreateOrderRequest{
+		UserId:         "user-1",
+		Amount:         12.34,
+		IdempotencyKey: "idem-1",
+	})
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+
+	if status.Code(err) != codes.Canceled {
+		t.Fatalf("unexpected status code: %v", status.Code(err))
+	}
+}
+
+func TestCreateOrder_DeadlineExceededMapsToDeadlineExceeded(t *testing.T) {
+	svc := &spyOrderService{err: context.DeadlineExceeded}
+	server := NewOrderServer(svc)
+
+	_, err := server.CreateOrder(context.Background(), &orderpb.CreateOrderRequest{
+		UserId:         "user-1",
+		Amount:         12.34,
+		IdempotencyKey: "idem-1",
+	})
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+
+	if status.Code(err) != codes.DeadlineExceeded {
+		t.Fatalf("unexpected status code: %v", status.Code(err))
+	}
+}

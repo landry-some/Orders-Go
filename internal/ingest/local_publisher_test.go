@@ -5,20 +5,25 @@ import (
 	"testing"
 	"time"
 
-	"wayfinder/internal/grid"
 	"wayfinder/internal/ingest"
 )
 
+type spyLocationStore struct {
+	called   bool
+	received ingest.Location
+	err      error
+}
+
+func (s *spyLocationStore) Update(ctx context.Context, loc ingest.Location) error {
+	s.called = true
+	s.received = loc
+	return s.err
+}
+
 func TestLocalGridPublisherPublishes(t *testing.T) {
 	ctx := context.Background()
-	wal, err := grid.NewFileWAL(t.TempDir() + "/wal.log")
-	if err != nil {
-		t.Fatalf("new wal: %v", err)
-	}
-	t.Cleanup(func() { _ = wal.Close() })
-
-	g := grid.NewGridService(wal)
-	publisher := ingest.NewGridPublisher(g)
+	store := &spyLocationStore{}
+	publisher := ingest.NewGridPublisher(store)
 
 	loc := ingest.Location{
 		DriverID:  "driver-123",
@@ -31,12 +36,10 @@ func TestLocalGridPublisherPublishes(t *testing.T) {
 		t.Fatalf("publish: %v", err)
 	}
 
-	got, ok := g.Get(loc.DriverID)
-	if !ok {
-		t.Fatalf("expected location for driver %s", loc.DriverID)
+	if !store.called {
+		t.Fatalf("expected store update to be called")
 	}
-
-	if got != loc {
-		t.Fatalf("got %+v, want %+v", got, loc)
+	if store.received != loc {
+		t.Fatalf("got %+v, want %+v", store.received, loc)
 	}
 }
