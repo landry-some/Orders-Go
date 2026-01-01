@@ -30,33 +30,28 @@ func TestMultiLocationStore_UpdateCallsAllStores(t *testing.T) {
 	}
 }
 
-func TestMultiLocationStore_UpdateStopsOnError(t *testing.T) {
-	first := &spyStore{err: errors.New("write failed")}
-	second := &spyStore{}
+func TestMultiLocationStore_UpdateContinuesOnErrors(t *testing.T) {
+	firstErr := errors.New("write failed")
+	secondErr := errors.New("redis failed")
+
+	first := &spyStore{err: firstErr}
+	second := &spyStore{err: secondErr}
 
 	store := NewMultiLocationStore(first, second)
-	if err := store.Update(context.Background(), Location{DriverID: "driver-1"}); err == nil {
+	err := store.Update(context.Background(), Location{DriverID: "driver-1"})
+	if err == nil {
 		t.Fatalf("expected error")
 	}
-
-	if first.calls != 1 {
-		t.Fatalf("expected first store to be called")
-	}
-	if second.calls != 0 {
-		t.Fatalf("expected second store to not be called, got %d", second.calls)
-	}
-}
-
-func TestMultiLocationStore_UpdatePropagatesLaterError(t *testing.T) {
-	first := &spyStore{}
-	second := &spyStore{err: errors.New("redis failed")}
-
-	store := NewMultiLocationStore(first, second)
-	if err := store.Update(context.Background(), Location{DriverID: "driver-1"}); err == nil {
-		t.Fatalf("expected error")
-	}
-
 	if first.calls != 1 || second.calls != 1 {
 		t.Fatalf("expected both stores to be called, got first=%d second=%d", first.calls, second.calls)
+	}
+	var joined bool
+	for _, target := range []error{firstErr, secondErr} {
+		if errors.Is(err, target) {
+			joined = true
+		}
+	}
+	if !joined {
+		t.Fatalf("expected returned error to include store errors, got %v", err)
 	}
 }

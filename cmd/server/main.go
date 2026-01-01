@@ -175,7 +175,11 @@ func readinessCheck(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer db.Close()
+	defer func() {
+		if cerr := db.Close(); cerr != nil {
+			log.Printf("readiness db close: %v", cerr)
+		}
+	}()
 	if _, err := db.ExecContext(ctx, "SELECT 1"); err != nil {
 		return err
 	}
