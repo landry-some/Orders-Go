@@ -36,16 +36,6 @@ type stubDriver struct {
 	calls int
 }
 
-type stubLimiter struct {
-	err    error
-	called bool
-}
-
-func (s *stubLimiter) Wait(context.Context) error {
-	s.called = true
-	return s.err
-}
-
 func (s *stubDriver) Assign(ctx context.Context, orderID string, driverID string) error {
 	s.calls++
 	return s.err
@@ -369,7 +359,7 @@ func TestReliableDriverClient_LimiterErrorStops(t *testing.T) {
 
 func TestRateLimiter_NilOrZeroRate(t *testing.T) {
 	var limiter *RateLimiter
-	if err := limiter.Wait(nil); err != nil {
+	if err := limiter.Wait(context.TODO()); err != nil {
 		t.Fatalf("nil limiter with nil ctx should be nil, got %v", err)
 	}
 

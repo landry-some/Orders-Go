@@ -3,6 +3,7 @@ package ingestdb
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
 	"time"
 
@@ -64,5 +65,35 @@ func TestPostgresLocationStore_Update_InsertsRow(t *testing.T) {
 	}
 	if err := store.Update(context.Background(), loc); err != nil {
 		t.Fatalf("Update: %v", err)
+	}
+}
+
+func TestPostgresLocationStoreWithSchema_Error(t *testing.T) {
+	db, mock, cleanup := newLocationMockDB(t)
+	t.Cleanup(cleanup)
+
+	mock.ExpectExec("CREATE TABLE IF NOT EXISTS driver_locations").
+		WillReturnError(errors.New("schema fail"))
+	mock.ExpectClose()
+
+	if _, err := NewPostgresLocationStoreWithSchema(context.Background(), db); err == nil {
+		t.Fatalf("expected schema error")
+	}
+}
+
+func TestPostgresLocationStoreWithSchema_Success(t *testing.T) {
+	db, mock, cleanup := newLocationMockDB(t)
+	t.Cleanup(cleanup)
+
+	mock.ExpectExec("CREATE TABLE IF NOT EXISTS driver_locations").
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectClose()
+
+	store, err := NewPostgresLocationStoreWithSchema(context.Background(), db)
+	if err != nil {
+		t.Fatalf("expected success, got %v", err)
+	}
+	if store == nil {
+		t.Fatalf("expected store instance")
 	}
 }

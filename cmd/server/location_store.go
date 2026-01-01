@@ -119,7 +119,7 @@ func (a redisClientAdapter) Pipeline() ingest.RedisPipeliner {
 }
 
 type redisPipelineAdapter struct {
-	pipe redis.Pipeliner
+	pipe ingest.RedisPipeliner
 }
 
 func (p redisPipelineAdapter) HSet(ctx context.Context, key string, values ...any) *redis.IntCmd {
