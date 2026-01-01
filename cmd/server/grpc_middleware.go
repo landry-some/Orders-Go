@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -99,8 +101,6 @@ func (r *grpcRateLimiter) refill(now time.Time) {
 type rateLimitedServerStream struct {
 	grpc.ServerStream
 	limiter rateLimiter
-	metrics *observability.Metrics
-	method  string
 }
 
 func (s *rateLimitedServerStream) RecvMsg(m any) error {
@@ -109,19 +109,14 @@ func (s *rateLimitedServerStream) RecvMsg(m any) error {
 			return err
 		}
 	}
-	span := &observability.CallSpan{}
-	if s.metrics != nil {
-		span = s.metrics.Start(s.method)
-	}
-	err := s.ServerStream.RecvMsg(m)
-	span.End(err)
-	return err
+	return s.ServerStream.RecvMsg(m)
 }
 
 func rateLimitUnaryInterceptor(limiter rateLimiter, metrics *observability.Metrics) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		span := &observability.CallSpan{}
-		if metrics != nil {
+		start := time.Now()
+		if metrics != nil && shouldTrackMethod(info.FullMethod) {
 			span = metrics.Start(info.FullMethod)
 		}
 		if limiter != nil {
@@ -132,6 +127,9 @@ func rateLimitUnaryInterceptor(limiter rateLimiter, metrics *observability.Metri
 		}
 		resp, err := handler(ctx, req)
 		span.End(err)
+		if err != nil && shouldTrackMethod(info.FullMethod) {
+			log.Printf("grpc unary %s error after %v: %v", info.FullMethod, time.Since(start), err)
+		}
 		return resp, err
 	}
 }
@@ -139,22 +137,31 @@ func rateLimitUnaryInterceptor(limiter rateLimiter, metrics *observability.Metri
 func rateLimitStreamInterceptor(limiter rateLimiter, metrics *observability.Metrics) grpc.StreamServerInterceptor {
 	return func(srv any, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		span := &observability.CallSpan{}
-		if metrics != nil {
+		start := time.Now()
+		if metrics != nil && shouldTrackMethod(info.FullMethod) {
 			span = metrics.Start(info.FullMethod)
 		}
 		if limiter == nil {
 			err := handler(srv, stream)
 			span.End(err)
+			if err != nil && shouldTrackMethod(info.FullMethod) {
+				log.Printf("grpc stream %s error after %v: %v", info.FullMethod, time.Since(start), err)
+			}
 			return err
 		}
 		wrapped := &rateLimitedServerStream{
 			ServerStream: stream,
 			limiter:      limiter,
-			metrics:      metrics,
-			method:       info.FullMethod,
 		}
 		err := handler(srv, wrapped)
 		span.End(err)
+		if err != nil && shouldTrackMethod(info.FullMethod) {
+			log.Printf("grpc stream %s error after %v: %v", info.FullMethod, time.Since(start), err)
+		}
 		return err
 	}
+}
+
+func shouldTrackMethod(method string) bool {
+	return method != "" && !strings.HasPrefix(method, "/grpc.reflection.")
 }

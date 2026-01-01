@@ -1,10 +1,10 @@
 # Wayfinder Backend
 
-A test-driven gRPC backend that pairs order/payment workflows with live location ingest, built with production-grade patterns.
+A test-driven gRPC backend that pairs order/payment workflows with live location ingest, built with production-grade patterns. 
 
 ## Why It Stands Out
 - Test-first discipline: every feature was driven by failing tests; coverage spans units and bufconn integration.
-- Resilience patterns: sagas with compensation, idempotency keys, circuit breakers, ingress/egress rate limits, graceful shutdown.
+- Resilience patterns: sagas with compensation, idempotency keys, circuit breakers, ingress/egress rate limits, graceful shutdown. 
 - Dual-store design: Redis for hot, shared state and bounded streams; Postgres for ACID money flow and audit history.
 
 ## Core Capabilities

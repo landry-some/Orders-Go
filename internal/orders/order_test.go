@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"wayfinder/internal/orders/saga"
+
+	"github.com/google/uuid"
 )
 
 type spyPayment struct {
@@ -212,6 +214,30 @@ func TestCreateOrder_RefundFailureReported(t *testing.T) {
 
 	if len(sagas.statuses) == 0 || sagas.statuses[len(sagas.statuses)-1] != saga.SagaStatusFailed {
 		t.Fatalf("expected saga to end in failed status, got %v", sagas.statuses)
+	}
+}
+
+func TestCreateOrder_DefaultGeneratorsUsePrefixedRandomIDs(t *testing.T) {
+	t.Parallel()
+
+	payment := &spyPayment{}
+	driver := &spyDriver{}
+	sagas := &spySagaStore{created: true}
+	service := NewOrderService(payment, driver, sagas, nil, nil)
+
+	orderID, err := service.CreateOrder(context.Background(), "user-1", 12.34, "idem-default")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if _, err := uuid.Parse(orderID); err != nil {
+		t.Fatalf("expected order ID to be a UUID, got %s (%v)", orderID, err)
+	}
+	if payment.orderID != orderID {
+		t.Fatalf("payment saw different order id: %s", payment.orderID)
+	}
+	if _, err := uuid.Parse(driver.driverID); err != nil {
+		t.Fatalf("expected driver ID to be a UUID, got %s (%v)", driver.driverID, err)
 	}
 }
 

@@ -21,6 +21,7 @@ type Snapshot struct {
 	InFlight        int64                     `json:"in_flight"`
 	RateLimitWaits  int64                     `json:"rate_limit_waits"`
 	RateLimitWaitMs int64                     `json:"rate_limit_wait_ms"`
+	Lifecycle       *LifecycleSnapshot        `json:"lifecycle,omitempty"`
 	Methods         map[string]MethodSnapshot `json:"methods"`
 }
 
@@ -39,12 +40,23 @@ type Metrics struct {
 	methods        map[string]*methodStats
 	rateLimitWaits int64
 	rateLimitWait  time.Duration
+	lifecycle      lifecycleStats
 }
 
 type CallSpan struct {
 	metrics *Metrics
 	method  string
 	start   time.Time
+}
+
+type lifecycleStats struct {
+	shutdownAt time.Time
+	inflight   int64
+}
+
+type LifecycleSnapshot struct {
+	ShutdownAt         time.Time `json:"shutdown_at"`
+	InFlightAtShutdown int64     `json:"inflight_at_shutdown"`
 }
 
 func NewMetrics() *Metrics {
@@ -121,6 +133,13 @@ func (m *Metrics) Snapshot() Snapshot {
 		snap.InFlight += stats.inFlight
 	}
 
+	if !m.lifecycle.shutdownAt.IsZero() {
+		snap.Lifecycle = &LifecycleSnapshot{
+			ShutdownAt:         m.lifecycle.shutdownAt,
+			InFlightAtShutdown: m.lifecycle.inflight,
+		}
+	}
+
 	return snap
 }
 
@@ -134,6 +153,10 @@ func (m *Metrics) ensureMethod(method string) *methodStats {
 }
 
 func (m *Metrics) finish(method string, dur time.Duration, failed bool) {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
 	stats := m.ensureMethod(method)
 	stats.inFlight--
 	stats.count++
@@ -145,4 +168,15 @@ func (m *Metrics) finish(method string, dur time.Duration, failed bool) {
 		stats.maxLatency = dur
 	}
 	stats.lastLatency = dur
+	m.mu.Unlock()
+}
+
+func (m *Metrics) MarkShutdown(inflight int64) {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	m.lifecycle.shutdownAt = time.Now()
+	m.lifecycle.inflight = inflight
+	m.mu.Unlock()
 }
