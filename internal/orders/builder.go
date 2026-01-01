@@ -10,6 +10,10 @@ import (
 	ordersdb "wayfinder/internal/db/orders"
 )
 
+var openOrderDB = func(driver, dsn string) (*sql.DB, error) {
+	return sql.Open(driver, dsn)
+}
+
 func BuildOrderService(ctx context.Context, dsn string, logf func(format string, args ...any)) (*OrderService, func(), error) {
 	if logf == nil {
 		logf = log.Printf
@@ -19,7 +23,7 @@ func BuildOrderService(ctx context.Context, dsn string, logf func(format string,
 		return nil, nil, fmt.Errorf("DATABASE_URL is required")
 	}
 
-	sqlDB, err := sql.Open("pgx", dsn)
+	sqlDB, err := openOrderDB("pgx", dsn)
 	if err != nil {
 		return nil, nil, fmt.Errorf("postgres open failed: %w", err)
 	}

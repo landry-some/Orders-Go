@@ -200,23 +200,33 @@ func TestOptionalAndRequiredHelpers(t *testing.T) {
 }
 
 func TestLoadRedis_InvalidRequiredFields(t *testing.T) {
-	t.Setenv("REDIS_URL", "redis://localhost:6379/0")
-	t.Setenv("REDIS_HEALTHCHECK_TIMEOUT", "bad")
-	t.Setenv("REDIS_LOCATION_TTL", "10m")
-	t.Setenv("REDIS_STREAM_MAXLEN", "1000")
-	if _, err := LoadRedis(); err == nil {
-		t.Fatalf("expected error for bad healthcheck timeout")
-	}
+	t.Run("bad healthcheck timeout", func(t *testing.T) {
+		t.Setenv("REDIS_URL", "redis://localhost:6379/0")
+		t.Setenv("REDIS_HEALTHCHECK_TIMEOUT", "bad")
+		t.Setenv("REDIS_LOCATION_TTL", "10m")
+		t.Setenv("REDIS_STREAM_MAXLEN", "1000")
+		if _, err := LoadRedis(); err == nil {
+			t.Fatalf("expected error for bad healthcheck timeout")
+		}
+	})
 
-	t.Setenv("REDIS_HEALTHCHECK_TIMEOUT", "1s")
-	t.Setenv("REDIS_LOCATION_TTL", "bad")
-	if _, err := LoadRedis(); err == nil {
-		t.Fatalf("expected error for bad location ttl")
-	}
+	t.Run("bad location ttl", func(t *testing.T) {
+		t.Setenv("REDIS_URL", "redis://localhost:6379/0")
+		t.Setenv("REDIS_HEALTHCHECK_TIMEOUT", "1s")
+		t.Setenv("REDIS_LOCATION_TTL", "bad")
+		t.Setenv("REDIS_STREAM_MAXLEN", "1000")
+		if _, err := LoadRedis(); err == nil {
+			t.Fatalf("expected error for bad location ttl")
+		}
+	})
 
-	t.Setenv("REDIS_LOCATION_TTL", "1s")
-	t.Setenv("REDIS_STREAM_MAXLEN", "notint")
-	if _, err := LoadRedis(); err == nil {
-		t.Fatalf("expected error for bad stream maxlen")
-	}
+	t.Run("bad stream maxlen", func(t *testing.T) {
+		t.Setenv("REDIS_URL", "redis://localhost:6379/0")
+		t.Setenv("REDIS_HEALTHCHECK_TIMEOUT", "1s")
+		t.Setenv("REDIS_LOCATION_TTL", "1s")
+		t.Setenv("REDIS_STREAM_MAXLEN", "notint")
+		if _, err := LoadRedis(); err == nil {
+			t.Fatalf("expected error for bad stream maxlen")
+		}
+	})
 }
