@@ -7,17 +7,17 @@ type LocationStore interface {
 	Update(ctx context.Context, loc Location) error
 }
 
-// GridPublisher publishes locations to a grid-backed store.
-type GridPublisher struct {
-	grid LocationStore
+// StorePublisher publishes locations to a LocationStore.
+type StorePublisher struct {
+	store LocationStore
 }
 
-// NewGridPublisher constructs a publisher targeting the given grid.
-func NewGridPublisher(g LocationStore) *GridPublisher {
-	return &GridPublisher{grid: g}
+// NewStorePublisher constructs a publisher targeting the given store.
+func NewStorePublisher(store LocationStore) *StorePublisher {
+	return &StorePublisher{store: store}
 }
 
 // Publish forwards the location to the grid store.
-func (p *GridPublisher) Publish(ctx context.Context, loc Location) error {
-	return p.grid.Update(ctx, loc)
+func (p *StorePublisher) Publish(ctx context.Context, loc Location) error {
+	return p.store.Update(ctx, loc)
 }

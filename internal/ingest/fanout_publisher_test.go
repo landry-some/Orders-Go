@@ -3,6 +3,7 @@ package ingest
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"testing"
 	"time"
 )
@@ -89,5 +90,41 @@ func TestFanoutPublisherSkipsBroadcastOnInnerError(t *testing.T) {
 
 	if bcaster.called {
 		t.Fatalf("expected broadcaster not to be called on error")
+	}
+}
+
+func TestFanoutPublisherHandlesNilBroadcaster(t *testing.T) {
+	t.Parallel()
+
+	inner := &spyPublisher{}
+	pub := NewFanoutPublisher(inner, nil)
+
+	loc := Location{DriverID: "driver-nil"}
+	if err := pub.Publish(context.Background(), loc); err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+
+	if !inner.called {
+		t.Fatalf("expected inner publisher to run")
+	}
+}
+
+func TestFanoutPublisherReturnsMarshalError(t *testing.T) {
+	t.Parallel()
+
+	inner := &spyPublisher{}
+	bcaster := &spyBroadcaster{}
+	pub := NewFanoutPublisher(inner, bcaster)
+
+	loc := Location{DriverID: "driver-nan", Lat: math.NaN()}
+	err := pub.Publish(context.Background(), loc)
+	if err == nil {
+		t.Fatalf("expected marshal error")
+	}
+	if !inner.called {
+		t.Fatalf("expected inner publisher to be called before marshal")
+	}
+	if bcaster.called {
+		t.Fatalf("expected no broadcast on marshal error")
 	}
 }
