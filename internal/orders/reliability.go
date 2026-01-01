@@ -186,11 +186,12 @@ func (c *CircuitBreaker) Execute(fn func() error) error {
 
 // RateLimiter is a token-bucket limiter.
 type RateLimiter struct {
-	mu    sync.Mutex
-	rate  time.Duration
-	burst int
-	now   func() time.Time
-	sleep func(context.Context, time.Duration) error
+	mu     sync.Mutex
+	rate   time.Duration
+	burst  int
+	now    func() time.Time
+	sleep  func(context.Context, time.Duration) error
+	onWait func(time.Duration)
 
 	tokens int
 	last   time.Time
@@ -198,11 +199,17 @@ type RateLimiter struct {
 
 // NewRateLimiter constructs a limiter that refills one token every rate.
 func NewRateLimiter(rate time.Duration, burst int) *RateLimiter {
+	return NewRateLimiterWithHook(rate, burst, nil)
+}
+
+// NewRateLimiterWithHook constructs a limiter with an optional wait hook.
+func NewRateLimiterWithHook(rate time.Duration, burst int, onWait func(time.Duration)) *RateLimiter {
 	limiter := &RateLimiter{
-		rate:  rate,
-		burst: burst,
-		now:   time.Now,
-		sleep: sleepWithContext,
+		rate:   rate,
+		burst:  burst,
+		now:    time.Now,
+		sleep:  sleepWithContext,
+		onWait: onWait,
 	}
 	limiter.tokens = burst
 	limiter.last = limiter.now()
@@ -234,9 +241,13 @@ func (r *RateLimiter) Wait(ctx context.Context) error {
 			return nil
 		}
 		wait := r.rate - now.Sub(r.last)
+		hook := r.onWait
 		r.mu.Unlock()
 		if wait <= 0 {
 			continue
+		}
+		if hook != nil {
+			hook(wait)
 		}
 		if err := r.sleep(ctx, wait); err != nil {
 			return err

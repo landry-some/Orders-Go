@@ -69,7 +69,7 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	limiter := newGrpcRateLimiter(grpcCfg.RateLimitInterval, grpcCfg.RateLimitBurst, metrics.AddRateLimitWait)
+	limiter := orders.NewRateLimiterWithHook(grpcCfg.RateLimitInterval, grpcCfg.RateLimitBurst, metrics.AddRateLimitWait)
 
 	server := grpcpkg.NewServer(
 		grpcpkg.UnaryInterceptor(rateLimitUnaryInterceptor(limiter, metrics)),
