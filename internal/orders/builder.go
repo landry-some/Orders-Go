@@ -80,7 +80,7 @@ func BuildOrderService(ctx context.Context, dsn string, logf func(format string,
 		reliablePayments,
 		reliableDrivers,
 		sagas,
-		func() string { return "order-" + time.Now().Format("20060102150405.000000000") },
-		func() string { return "driver-" + time.Now().Format("150405") },
+		newOrderID,
+		newDriverID,
 	), cleanup, nil
 }

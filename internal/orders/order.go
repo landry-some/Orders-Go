@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"wayfinder/internal/orders/saga"
+
+	"github.com/google/uuid"
 )
 
 // PaymentClient charges a payment instrument for an order.
@@ -38,10 +39,10 @@ type OrderService struct {
 // NewOrderService constructs an OrderService.
 func NewOrderService(payments PaymentClient, drivers DriverClient, sagas saga.SagaStore, idGen IDGenerator, driverSel DriverSelector) *OrderService {
 	if idGen == nil {
-		idGen = func() string { return "order-" + time.Now().Format("20060102150405.000000000") }
+		idGen = newOrderID
 	}
 	if driverSel == nil {
-		driverSel = func() string { return "driver-" + time.Now().Format("150405") }
+		driverSel = newDriverID
 	}
 
 	return &OrderService{
@@ -107,4 +108,11 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID string, amount fl
 	_ = s.sagas.AddStep(ctx, orderID, "assign", "succeeded", "")
 	_ = s.sagas.UpdateStatus(ctx, orderID, saga.SagaStatusSucceeded)
 	return orderID, nil
+}
+
+func newOrderID() string  { return newUUIDString() }
+func newDriverID() string { return newUUIDString() }
+
+func newUUIDString() string {
+	return uuid.Must(uuid.NewV7()).String()
 }

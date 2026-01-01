@@ -4,6 +4,7 @@ go 1.24.0
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	google.golang.org/grpc v1.78.0
 	google.golang.org/protobuf v1.36.11
@@ -19,6 +20,7 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/pgx/v5 v5.8.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/redis/go-redis/extra/rediscmd/v9 v9.17.2 // indirect
 	github.com/redis/go-redis/extra/redisotel/v9 v9.17.2 // indirect
 	github.com/redis/go-redis/v9 v9.17.2 // indirect

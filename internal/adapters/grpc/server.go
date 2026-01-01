@@ -3,6 +3,7 @@ package grpc
 import (
 	"context"
 	"io"
+	"log"
 	"time"
 
 	driverpb "wayfinder/api/proto/driver"
@@ -36,12 +37,14 @@ func (s *Server) UpdateLocation(stream driverpb.DriverService_UpdateLocationServ
 			return stream.SendAndClose(&driverpb.UpdateLocationAck{Message: "ok"})
 		}
 		if err != nil {
+			log.Printf("UpdateLocation recv error: %v", err)
 			return status.Errorf(codes.Internal, "recv: %v", err)
 		}
 
 		ts := time.Time{}
 		if msg.GetTimestamp() != nil {
 			if !msg.GetTimestamp().IsValid() {
+				log.Printf("UpdateLocation invalid timestamp: %v", msg.GetTimestamp())
 				return status.Errorf(codes.InvalidArgument, "invalid timestamp")
 			}
 			ts = msg.GetTimestamp().AsTime()

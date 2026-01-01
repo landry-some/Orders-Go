@@ -20,6 +20,7 @@ import (
 	"wayfinder/internal/observability"
 	"wayfinder/internal/orders"
 
+	"github.com/joho/godotenv"
 	grpcpkg "google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -30,6 +31,8 @@ import (
 )
 
 func main() {
+	_ = godotenv.Load()
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -48,6 +51,8 @@ func run(ctx context.Context) error {
 	publisher := ingest.NewFanoutPublisher(ingest.NewGridPublisher(locationStore), nil)
 	ingestService := ingest.NewIngestService(publisher)
 
+	metrics := observability.NewMetrics()
+
 	orderService, cleanup, err := orders.BuildOrderService(ctx, os.Getenv("DATABASE_URL"), log.Printf)
 	if err != nil {
 		return err
@@ -64,7 +69,6 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	metrics := observability.NewMetrics()
 	limiter := newGrpcRateLimiter(grpcCfg.RateLimitInterval, grpcCfg.RateLimitBurst, metrics.AddRateLimitWait)
 
 	server := grpcpkg.NewServer(
@@ -101,6 +105,9 @@ func run(ctx context.Context) error {
 		healthServer.SetServingStatus(driverpb.DriverService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_NOT_SERVING)
 		healthServer.SetServingStatus(orderpb.OrderService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_NOT_SERVING)
 		healthServer.SetServingStatus("", healthpb.HealthCheckResponse_NOT_SERVING)
+		if metrics != nil {
+			metrics.MarkShutdown(metrics.Snapshot().InFlight)
+		}
 		server.GracefulStop()
 		if obsSrv != nil {
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
