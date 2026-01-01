@@ -1,6 +1,9 @@
 package ingest
 
-import "context"
+import (
+	"context"
+	"errors"
+)
 
 // MultiLocationStore writes to multiple location stores in order.
 type MultiLocationStore struct {
@@ -12,12 +15,13 @@ func NewMultiLocationStore(stores ...LocationStore) *MultiLocationStore {
 	return &MultiLocationStore{stores: stores}
 }
 
-// Update forwards the location to each store until an error occurs.
+// Update forwards the location to each store, collecting errors so all stores get a chance to write.
 func (m *MultiLocationStore) Update(ctx context.Context, loc Location) error {
+	var errs []error
 	for _, store := range m.stores {
 		if err := store.Update(ctx, loc); err != nil {
-			return err
+			errs = append(errs, err)
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
