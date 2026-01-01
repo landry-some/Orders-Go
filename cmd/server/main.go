@@ -48,7 +48,7 @@ func run(ctx context.Context) error {
 	}
 	defer cleanupStore()
 
-	publisher := ingest.NewFanoutPublisher(ingest.NewGridPublisher(locationStore), nil)
+	publisher := ingest.NewFanoutPublisher(ingest.NewStorePublisher(locationStore), nil)
 	ingestService := ingest.NewIngestService(publisher)
 
 	metrics := observability.NewMetrics()

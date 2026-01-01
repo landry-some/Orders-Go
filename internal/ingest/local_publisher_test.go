@@ -23,7 +23,7 @@ func (s *spyLocationStore) Update(ctx context.Context, loc ingest.Location) erro
 func TestLocalGridPublisherPublishes(t *testing.T) {
 	ctx := context.Background()
 	store := &spyLocationStore{}
-	publisher := ingest.NewGridPublisher(store)
+	publisher := ingest.NewStorePublisher(store)
 
 	loc := ingest.Location{
 		DriverID:  "driver-123",

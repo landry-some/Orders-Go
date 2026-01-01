@@ -9,15 +9,28 @@ import (
 
 // RedisLocationStore stores latest locations in Redis and appends to a stream.
 type RedisLocationStore struct {
-	client    *redis.Client
+	client    RedisPipelineClient
 	stream    string
 	keyPrefix string
 	ttl       time.Duration
 	maxLen    int64
 }
 
+// RedisPipelineClient is the minimal client surface used by RedisLocationStore.
+type RedisPipelineClient interface {
+	Pipeline() RedisPipeliner
+}
+
+// RedisPipeliner is the subset of commands used within a pipeline.
+type RedisPipeliner interface {
+	HSet(ctx context.Context, key string, values ...any) *redis.IntCmd
+	Expire(ctx context.Context, key string, expiration time.Duration) *redis.BoolCmd
+	XAdd(ctx context.Context, a *redis.XAddArgs) *redis.StringCmd
+	Exec(ctx context.Context) ([]redis.Cmder, error)
+}
+
 // NewRedisLocationStore constructs a Redis-backed location store.
-func NewRedisLocationStore(client *redis.Client, stream string, ttl time.Duration, maxLen int64) *RedisLocationStore {
+func NewRedisLocationStore(client RedisPipelineClient, stream string, ttl time.Duration, maxLen int64) *RedisLocationStore {
 	if stream == "" {
 		stream = "location_events"
 	}

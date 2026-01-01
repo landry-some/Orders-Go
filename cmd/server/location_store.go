@@ -97,7 +97,7 @@ func buildLocationStore(ctx context.Context) (ingest.LocationStore, func(), erro
 		return nil, nil, err
 	}
 
-	latestStore := ingest.NewRedisLocationStore(client, cfg.Stream, time.Duration(cfg.LocationTTL), cfg.StreamMaxLen)
+	latestStore := ingest.NewRedisLocationStore(redisClientAdapter{client: client}, cfg.Stream, time.Duration(cfg.LocationTTL), cfg.StreamMaxLen)
 	store := ingest.NewMultiLocationStore(historyStore, latestStore)
 	cleanup := func() {
 		if err := client.Close(); err != nil {
@@ -108,4 +108,32 @@ func buildLocationStore(ctx context.Context) (ingest.LocationStore, func(), erro
 		}
 	}
 	return store, cleanup, nil
+}
+
+type redisClientAdapter struct {
+	client *redis.Client
+}
+
+func (a redisClientAdapter) Pipeline() ingest.RedisPipeliner {
+	return redisPipelineAdapter{pipe: a.client.Pipeline()}
+}
+
+type redisPipelineAdapter struct {
+	pipe redis.Pipeliner
+}
+
+func (p redisPipelineAdapter) HSet(ctx context.Context, key string, values ...any) *redis.IntCmd {
+	return p.pipe.HSet(ctx, key, values...)
+}
+
+func (p redisPipelineAdapter) Expire(ctx context.Context, key string, expiration time.Duration) *redis.BoolCmd {
+	return p.pipe.Expire(ctx, key, expiration)
+}
+
+func (p redisPipelineAdapter) XAdd(ctx context.Context, a *redis.XAddArgs) *redis.StringCmd {
+	return p.pipe.XAdd(ctx, a)
+}
+
+func (p redisPipelineAdapter) Exec(ctx context.Context) ([]redis.Cmder, error) {
+	return p.pipe.Exec(ctx)
 }
