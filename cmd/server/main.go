@@ -30,19 +30,27 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+var (
+	runFunc                      = run
+	buildLocationStoreFunc       = buildLocationStore
+	buildOrderServiceFunc        = orders.BuildOrderService
+	startObservabilityServerFunc = startObservabilityServer
+	listenFunc                   = net.Listen
+)
+
 func main() {
 	_ = godotenv.Load()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := run(ctx); err != nil {
+	if err := runFunc(ctx); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
 }
 
 func run(ctx context.Context) error {
-	locationStore, cleanupStore, err := buildLocationStore(ctx)
+	locationStore, cleanupStore, err := buildLocationStoreFunc(ctx)
 	if err != nil {
 		return err
 	}
@@ -53,14 +61,14 @@ func run(ctx context.Context) error {
 
 	metrics := observability.NewMetrics()
 
-	orderService, cleanup, err := orders.BuildOrderService(ctx, os.Getenv("DATABASE_URL"), log.Printf)
+	orderService, cleanup, err := buildOrderServiceFunc(ctx, os.Getenv("DATABASE_URL"), log.Printf)
 	if err != nil {
 		return err
 	}
 	defer cleanup()
 	orderAdapter := grpc.NewOrderServer(orderService)
 
-	lis, err := net.Listen("tcp", ":50051")
+	lis, err := listenFunc("tcp", ":50051")
 	if err != nil {
 		return err
 	}
@@ -90,7 +98,7 @@ func run(ctx context.Context) error {
 	}
 
 	log.Println("Server running on :50051...")
-	obsSrv, obsErr := startObservabilityServer(ctx, metrics)
+	obsSrv, obsErr := startObservabilityServerFunc(ctx, metrics)
 	if obsErr != nil {
 		return obsErr
 	}
