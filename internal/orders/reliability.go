@@ -61,7 +61,7 @@ func (p RetryPolicy) Do(ctx context.Context, fn func() error) error {
 		}
 
 		delay := p.BaseDelay
-		if delay > 0 && attempt > 1 {
+		if delay > 0 {
 			delay = delay << (attempt - 1)
 		}
 		if p.MaxDelay > 0 && delay > p.MaxDelay {
