@@ -45,13 +45,9 @@ func TestMultiLocationStore_UpdateContinuesOnErrors(t *testing.T) {
 	if first.calls != 1 || second.calls != 1 {
 		t.Fatalf("expected both stores to be called, got first=%d second=%d", first.calls, second.calls)
 	}
-	var joined bool
 	for _, target := range []error{firstErr, secondErr} {
-		if errors.Is(err, target) {
-			joined = true
+		if !errors.Is(err, target) {
+			t.Fatalf("expected returned error to include %v, got %v", target, err)
 		}
-	}
-	if !joined {
-		t.Fatalf("expected returned error to include store errors, got %v", err)
 	}
 }
