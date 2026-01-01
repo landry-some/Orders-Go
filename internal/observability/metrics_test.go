@@ -1,7 +1,10 @@
 package observability
 
 import (
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -35,6 +38,7 @@ func TestMetricsTracksRateLimitWait(t *testing.T) {
 	metrics := NewMetrics()
 	metrics.AddRateLimitWait(50 * time.Millisecond)
 	metrics.AddRateLimitWait(25 * time.Millisecond)
+	metrics.AddRateLimitWait(0)
 
 	snap := metrics.Snapshot()
 	if snap.RateLimitWaits != 2 {
@@ -43,4 +47,52 @@ func TestMetricsTracksRateLimitWait(t *testing.T) {
 	if snap.RateLimitWaitMs != 75 {
 		t.Fatalf("expected 75ms, got %d", snap.RateLimitWaitMs)
 	}
+}
+
+func TestMetricsMarkShutdown(t *testing.T) {
+	metrics := NewMetrics()
+	metrics.MarkShutdown(5)
+	snap := metrics.Snapshot()
+	if snap.Lifecycle == nil {
+		t.Fatalf("expected lifecycle snapshot")
+	}
+	if snap.Lifecycle.InFlightAtShutdown != 5 {
+		t.Fatalf("expected inflight 5, got %d", snap.Lifecycle.InFlightAtShutdown)
+	}
+	if snap.Lifecycle.ShutdownAt.IsZero() {
+		t.Fatalf("expected shutdown timestamp")
+	}
+}
+
+func TestHandlerReturnsJSON(t *testing.T) {
+	metrics := NewMetrics()
+	span := metrics.Start("/test")
+	span.End(errors.New("fail"))
+
+	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	rr := httptest.NewRecorder()
+
+	Handler(metrics).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rr.Code)
+	}
+	var snap Snapshot
+	if err := json.Unmarshal(rr.Body.Bytes(), &snap); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if snap.TotalErrors != 1 {
+		t.Fatalf("expected total errors 1, got %d", snap.TotalErrors)
+	}
+	if len(snap.Methods) == 0 {
+		t.Fatalf("expected methods in snapshot")
+	}
+}
+
+func TestMetricsNilSafePaths(t *testing.T) {
+	var m *Metrics
+	span := m.Start("ignored") // nil-safe
+	span.End(nil)              // should not panic
+
+	m.MarkShutdown(10) // nil-safe
 }
