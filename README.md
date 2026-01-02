@@ -14,11 +14,16 @@ A test-driven gRPC backend that pairs order/payment workflows with live location
 ## Architecture
 - Services: a gRPC order service (creates orders, charges payments, assigns a unit) and a gRPC ingest service (streaming location updates).
 - Storage split: Postgres for money flow + audit; Redis for hot state and bounded event streams.
+- Order flow: ![Order flow](assets/orderpath.png)
+- Location ingest: ![Location ingest](assets/locationpath.png)
+
 
 ## Operations & Observability
 - Reliability: retries with jitter, circuit breakers, ingress/egress rate limits, context-driven timeouts, graceful shutdown.
 - Health: `/readyz` pings Redis + Postgres; gRPC health service.
 - Metrics: `/metrics` JSON snapshot (per-method latency/errors/in-flight, rate-limit waits, uptime).
+- Metrics snapshot: ![Metrics](assets/metrics.png)
+
 
 ## Testing
 - Most features are covered by tests.
@@ -38,3 +43,4 @@ A test-driven gRPC backend that pairs order/payment workflows with live location
 |---------------------------|-----------------------------------------------------------------|
 | Hash `driver:<id>`        | Latest location snapshot with TTL: {driver_id, lat, long, timestamp} |
 | Stream `location_events`  | Recent location updates; capped length for replay/audit         |
+- Storage snapshot: ![Tables](assets/tables.png)
