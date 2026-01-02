@@ -1,15 +1,11 @@
-# Description
+# Overview
 
 A test-driven gRPC backend that pairs order/payment workflows with live location ingest, built with production-grade patterns. 
 
-## Highlights
-- Test-first discipline: every feature was driven by failing tests; coverage spans units and bufconn integration.
+## Description
+- Test-first discipline: every feature was driven by failing tests.
 - Resilience patterns: sagas with compensation, idempotency keys, circuit breakers, ingress/egress rate limits, graceful shutdown.
-- Dual-store design: Redis for hot, shared state and bounded streams; Postgres for ACID money flow and audit history.
-
-## Core Capabilities
-- Location stream → latest state in Redis, event stream (TTL/trim) for replay/audit, durable history in Postgres.
-- Order pipeline → ACID payments in Postgres, assignment to an available unit, saga log with compensation (refund on assignment failure), idempotency keys.
+- Hot/cold split: Redis for hot shared state and bounded streams; Postgres for ACID money flow and audit history.
 
 ## Architecture
 - Services: a gRPC order service (creates orders, charges payments, assigns a unit) and a gRPC ingest service (streaming location updates).
@@ -17,16 +13,6 @@ A test-driven gRPC backend that pairs order/payment workflows with live location
 - Order flow: ![Order flow](assets/orderpath.png)
 - Location ingest: ![Location ingest](assets/locationpath.png)
 
-
-## Operations & Observability
-- Reliability: retries with jitter, circuit breakers, ingress/egress rate limits, context-driven timeouts, graceful shutdown.
-- Health: `/readyz` pings Redis + Postgres; gRPC health service.
-- Metrics: `/metrics` JSON snapshot (per-method latency/errors/in-flight, rate-limit waits, uptime).
-- Metrics snapshot: ![Metrics](assets/metrics.png)
-
-
-## Testing
-- Most features are covered by tests.
 
 ## Storage Map
 **Postgres**
@@ -44,3 +30,9 @@ A test-driven gRPC backend that pairs order/payment workflows with live location
 | Hash `driver:<id>`        | Latest location snapshot with TTL: {driver_id, lat, long, timestamp} |
 | Stream `location_events`  | Recent location updates; capped length for replay/audit         |
 - Storage snapshot: ![Tables](assets/tables.png)
+
+## Operations & Observability
+- Reliability: retries with jitter, circuit breakers, ingress/egress rate limits, context-driven timeouts, graceful shutdown.
+- Health: `/readyz` pings Redis + Postgres; gRPC health service.
+- Metrics: `/metrics` JSON snapshot (per-method latency/errors/in-flight, rate-limit waits, uptime).
+- Metrics snapshot: ![Metrics](assets/metrics.png)
